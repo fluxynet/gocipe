@@ -14,9 +14,12 @@ type node struct {
 	value interface{}
 }
 
-func checkValuesPresent(t *testing.T, want []node, got Values) {
+func checkValuesPresent(t *testing.T, want []node, got *Values) {
 	var lw = len(want)
-	var lg = got.Length()
+	var lg int
+	if got != nil {
+		lg = got.Length()
+	}
 
 	if lw != lg {
 		t.Errorf("wantLength = %d\ngotLength = %d\n", lw, lg)
@@ -40,9 +43,21 @@ func checkValuesPresent(t *testing.T, want []node, got Values) {
 	}
 }
 
-func compareValues(t *testing.T, want, got Values) {
-	var lw = want.Length()
-	var lg = got.Length()
+func compareValues(t *testing.T, want, got *Values) {
+	if (want == nil) != (got == nil) {
+		t.Errorf("nils: want = %t got = %t", want == nil, got == nil)
+		return
+	}
+
+	var lw, lg int
+
+	if want != nil {
+		lw = want.Length()
+	}
+
+	if got != nil {
+		lg = got.Length()
+	}
 
 	if lw != lg {
 		t.Errorf("wantLength = %d\ngotLength = %d\n", lw, lg)
@@ -221,7 +236,7 @@ func TestFromJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    Values
+		want    *Values
 		wantErr bool
 	}{
 		{
@@ -232,17 +247,6 @@ func TestFromJSON(t *testing.T) {
 			},
 			want:    FromMap(map[string]interface{}{}),
 			wantErr: false,
-		},
-		{
-			name: "empty json, required field",
-			args: args{
-				r: `{}`,
-				f: fields.FromMap(map[string]gocipe.Type{
-					"+foo": gocipe.String,
-				}),
-			},
-			want:    FromMap(map[string]interface{}{}),
-			wantErr: true,
 		},
 		{
 			name: "empty fields",
@@ -270,7 +274,7 @@ func TestFromJSON(t *testing.T) {
 					"name": gocipe.String,
 				}),
 			},
-			want:    FromMap(map[string]interface{}{}),
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -330,7 +334,7 @@ func TestFromJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FromJSON(io.NopCloser(bytes.NewReader([]byte(tt.args.r))), tt.args.f)
+			got, err := FromJSON(io.NopCloser(bytes.NewReader([]byte(tt.args.r))), tt.args.f, false)
 
 			if (err != nil) && !tt.wantErr {
 				t.Errorf("unwanted error: %v\n", tt.wantErr)

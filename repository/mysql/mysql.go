@@ -66,6 +66,8 @@ func Operator(op repository.ConditionOperator) string {
 		return "<"
 	case repository.LessOrEqualTo:
 		return "<="
+	case repository.Like:
+		return "LIKE"
 	case repository.In:
 		return "IN"
 	case repository.NotIn:
@@ -116,7 +118,7 @@ func ConditionsToWhere(c []repository.Condition) (string, []interface{}) {
 	t -= 1
 	for i := range c {
 		where.WriteString("`")
-		where.WriteString(c[i].Property)
+		where.WriteString(c[i].Attribute)
 		where.WriteString("` ")
 		where.WriteString(Operator(c[i].Operator))
 		where.WriteString(" ?")
@@ -217,7 +219,7 @@ func DeleteWhere(entity string, c ...repository.Condition) Query {
 }
 
 // Create generates Query for an INSERT INTO operation
-func Create(entity string, vals values.Values) Query {
+func Create(entity string, vals *values.Values) Query {
 	if entity == "" || vals.IsEmpty() {
 		return Query{}
 	}
@@ -247,7 +249,7 @@ func Create(entity string, vals values.Values) Query {
 }
 
 // ValuesToSet accepts 1 or more values and returns (SET field1 = ?, field2 = ?) and args
-func ValuesToSet(vals values.Values) (set string, args []interface{}) {
+func ValuesToSet(vals *values.Values) (set string, args []interface{}) {
 	if vals.IsEmpty() {
 		return "", nil
 	}
@@ -270,7 +272,7 @@ func ValuesToSet(vals values.Values) (set string, args []interface{}) {
 }
 
 // Update generates Query for an UPDATE ... WHERE id = ? query
-func Update(entity string, id string, vals values.Values) Query {
+func Update(entity string, id string, vals *values.Values) Query {
 	if entity == "" || id == "" || vals.IsEmpty() {
 		return Query{}
 	}
@@ -284,7 +286,7 @@ func Update(entity string, id string, vals values.Values) Query {
 }
 
 // UpdateWhere generates Query for an UPDATE ... WHERE ... query
-func UpdateWhere(entity string, vals values.Values, c ...repository.Condition) Query {
+func UpdateWhere(entity string, vals *values.Values, c ...repository.Condition) Query {
 	if entity == "" || vals.IsEmpty() {
 		return Query{}
 	}

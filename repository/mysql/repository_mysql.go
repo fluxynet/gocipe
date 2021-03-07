@@ -26,7 +26,7 @@ func New(db *sql.DB) Repo {
 }
 
 // Get a single Entity by id
-func (r *Repo) Get(ctx context.Context, entity string, f fields.Fields, id string) (values.Values, error) {
+func (r *Repo) Get(ctx context.Context, entity string, f fields.Fields, id string) (*values.Values, error) {
 	var (
 		vals values.Values
 		q    = Get(entity, f, id)
@@ -42,13 +42,13 @@ func (r *Repo) Get(ctx context.Context, entity string, f fields.Fields, id strin
 	}
 
 	if err != nil {
-		return vals, err
+		return nil, err
 	}
 
 	for rs.Next() {
 		err = rs.Scan(dst...)
 		if err != nil {
-			return vals, err
+			return nil, err
 		}
 
 		for i := 0; it.Next(); i++ {
@@ -56,7 +56,7 @@ func (r *Repo) Get(ctx context.Context, entity string, f fields.Fields, id strin
 		}
 	}
 
-	return vals, err
+	return &vals, err
 }
 
 // List multiple Entity with pagination rules and conditions
@@ -119,7 +119,7 @@ func (r *Repo) DeleteWhere(ctx context.Context, entity string, c ...repository.C
 }
 
 // Create a new Entity in persistent storage
-func (r *Repo) Create(ctx context.Context, entity string, vals values.Values) (string, error) {
+func (r *Repo) Create(ctx context.Context, entity string, vals *values.Values) (string, error) {
 	var (
 		q   Query
 		err error
@@ -137,7 +137,7 @@ func (r *Repo) Create(ctx context.Context, entity string, vals values.Values) (s
 }
 
 // Update an existing Entity in persistent storage
-func (r *Repo) Update(ctx context.Context, entity string, id string, vals values.Values) error {
+func (r *Repo) Update(ctx context.Context, entity string, id string, vals *values.Values) error {
 	vals.Unset("id")
 
 	var q = Update(
@@ -161,7 +161,7 @@ func (r *Repo) Update(ctx context.Context, entity string, id string, vals values
 }
 
 // UpdateValuesWhere Values in persistent storage
-func (r *Repo) UpdateValues(ctx context.Context, entity string, vals values.Values, c ...repository.Condition) error {
+func (r *Repo) UpdateWhere(ctx context.Context, entity string, vals *values.Values, c ...repository.Condition) error {
 	var q = UpdateWhere(
 		entity,
 		vals,
@@ -171,4 +171,13 @@ func (r *Repo) UpdateValues(ctx context.Context, entity string, vals values.Valu
 	var _, err = r.db.ExecContext(ctx, q.SQL, q.Args...)
 
 	return err
+}
+
+// Close db connection
+func (r *Repo) Close() error {
+	if r.db == nil {
+		return nil
+	}
+
+	return r.db.Close()
 }

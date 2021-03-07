@@ -1,17 +1,17 @@
 package fields
 
 import (
-	"github.com/fluxynet/gocipe"
 	"strings"
+
+	"github.com/fluxynet/gocipe"
 )
 
 // Field as part of a set
 type Field struct {
-	Name     string
-	Kind     gocipe.Type
-	Required bool
+	Name string
+	Kind gocipe.Type
 	prev *Field
-	next     *Field
+	next *Field
 }
 
 // Fields representing a field set
@@ -26,8 +26,22 @@ func (f Fields) IsEmpty() bool {
 	return f.head == nil
 }
 
+// Contains checks if a named field exists
+func (f Fields) Contains(n string) bool {
+	if f.items == nil {
+		return false
+	}
+
+	var _, ok = f.items[n]
+	return ok
+}
+
 // Length of the field set
 func (f Fields) Length() int {
+	if f.items == nil {
+		return 0
+	}
+
 	return len(f.items)
 }
 
@@ -54,14 +68,7 @@ func (f *Fields) Unset(name string) *Fields {
 
 // Set a named Field kind
 func (f *Fields) Set(name string, kind gocipe.Type) *Fields {
-	var required bool
-
-	if strings.HasPrefix(name, "+") {
-		required = true
-		name = name[1:]
-	}
-
-	var node = &Field{Name: name, Kind: kind, Required: required}
+	var node = &Field{Name: name, Kind: kind}
 
 	if f.head == nil { // list is empty
 		f.head = node
@@ -115,14 +122,8 @@ func (f Fields) String() string {
 	)
 
 	for it.Next() {
-		var req string
-		f := it.Field()
-
-		if f.Required {
-			req = "!"
-		}
-
-		s = append(s, f.Name+":"+string(f.Kind)+req)
+		var f = it.Field()
+		s = append(s, f.Name+":"+string(f.Kind))
 	}
 
 	return strings.Join(s, ", ")

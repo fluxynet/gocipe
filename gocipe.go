@@ -1,5 +1,15 @@
 package gocipe
 
+import (
+	"errors"
+	"strconv"
+)
+
+var (
+	// ErrInvalidValue is when a value sent is invalid
+	ErrInvalidValue = errors.New("invalid value provided")
+)
+
 // Type represents a variable type
 type Type string
 
@@ -52,6 +62,28 @@ func DefaultPointer(t Type) interface{} {
 	return nil
 }
 
+// BoolFromString parses Bool
+func BoolFromString(s string) (bool, error) {
+	switch s {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+
+	return false, ErrInvalidValue
+}
+
+// Int64FromString parses Int64
+func Int64FromString(s string) (int64, error) {
+	return strconv.ParseInt(string(s), 10, 64)
+}
+
+// Float64FromString parses Float64
+func Float64FromString(s string) (float64, error) {
+	return strconv.ParseFloat(string(s), 64)
+}
+
 // Parser introspects a file and returns defined
 type Parser interface {
 	Parse(name string, src interface{}) error
@@ -61,69 +93,42 @@ type Parser interface {
 // Entities is a reference of entity_name => Entity
 type Entities map[string]Entity
 
-// IsTypeNative returns true if a golang native type
-func IsTypeNative(t string) bool {
-	switch t {
-	case "bool",
-		"string",
-		"int",
-		"int8",
-		"int16",
-		"int32",
-		"int64",
-		"uint",
-		"uint8",
-		"uint16",
-		"uint32",
-		"uint64",
-		"uintptr",
-		"byte",
-		"rune",
-		"float32",
-		"float64",
-		"complex64",
-		"complex128":
-		return false
-	}
-
-	return true
-}
-
-// ResolveEntityEmbeds resolves all embedded types in entities
-func ResolveEntityEmbeds(entities Entities, ent Entity) Entity {
-	var (
-		entity   Entity
-		resolved bool
-	)
-
-	entity.Name = ent.Name
-
-	for _, f := range ent.Fields {
-		if f.IsEmbedded {
-			embedded, ok := entities[f.Type]
-			if !ok {
-				continue
-			}
-
-			entity.Fields = append(entity.Fields, embedded.Fields...)
-			resolved = true
-		} else {
-			entity.Fields = append(entity.Fields, f)
-		}
-	}
-
-	if resolved {
-		return ResolveEntityEmbeds(entities, entity)
-	}
-
-	return entity
-}
-
-func EntitiesToMap(entities []Entity) Entities {
-	var entMap = make(Entities)
-	for _, entity := range entities {
-		entMap[entity.Name] = entity
-	}
-
-	return entMap
-}
+//
+//// ResolveEntityEmbeds resolves all embedded types in entities
+//func ResolveEntityEmbeds(entities Entities, ent Entity) Entity {
+//	var (
+//		entity   Entity
+//		resolved bool
+//	)
+//
+//	entity.Name = ent.Name
+//
+//	for _, f := range ent.Fields {
+//		if f.IsEmbedded {
+//			embedded, ok := entities[f.Type]
+//			if !ok {
+//				continue
+//			}
+//
+//			entity.Fields = append(entity.Fields, embedded.Fields...)
+//			resolved = true
+//		} else {
+//			entity.Fields = append(entity.Fields, f)
+//		}
+//	}
+//
+//	if resolved {
+//		return ResolveEntityEmbeds(entities, entity)
+//	}
+//
+//	return entity
+//}
+//
+//func EntitiesToMap(entities []Entity) Entities {
+//	var entMap = make(Entities)
+//	for _, entity := range entities {
+//		entMap[entity.Name] = entity
+//	}
+//
+//	return entMap
+//}

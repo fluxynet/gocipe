@@ -2,15 +2,19 @@ package rest
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/fluxynet/gocipe"
 	"github.com/fluxynet/gocipe/fields"
 	"github.com/fluxynet/gocipe/repository"
 	"github.com/fluxynet/gocipe/values"
-	"net/http"
+	"github.com/fluxynet/gocipe/web"
 )
 
-// Server represents a REST server
-type Server struct {
+// Resource represents a REST server endpoint set for a specific entity
+type Resource struct {
 	// IdGetter to read ids from http.Request
 	IdGetter GetIdFunc
 
@@ -23,27 +27,12 @@ type Server struct {
 	// Repo for data persistence
 	Repo repository.Repositorium
 
-	// NoGet disables Get method on the resource if set to true
-	NoGet bool
-
-	// NoList disables List method on the resource if set to true
-	NoList bool
-
-	// NoDelete disables Delete method on the resource if set to true
-	NoDelete bool
-
-	// NoCreate disables Create method on the resource if set to true
-	NoCreate bool
-
-	// NoReplace disables Replace method on the resource if set to true
-	NoReplace bool
-
-	// NoUpdate disables Update method on the resource if set to true
-	NoUpdate bool
+	// Methods enabled
+	Methods MethodSet
 }
 
 // ServeHTTP is a simple muxer based on method (and also presence of id in url in case of GET)
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		disabled bool
 		handler  http.HandlerFunc
@@ -52,23 +41,23 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodHead, http.MethodGet:
 		if _, err := s.IdGetter(r); err == ErrIdNotPresent {
-			disabled = s.NoList
+			disabled = s.Methods.NotHas(ENDPOINTS_LIST)
 			handler = s.List
 		} else {
-			disabled = s.NoGet
+			disabled = s.Methods.NotHas(ENDPOINTS_GET)
 			handler = s.Get
 		}
 	case http.MethodPost:
-		disabled = s.NoCreate
+		disabled = s.Methods.NotHas(ENDPOINTS_CREATE)
 		handler = s.Create
 	case http.MethodPut:
-		disabled = s.NoReplace
+		disabled = s.Methods.NotHas(ENDPOINTS_REPLACE)
 		handler = s.Replace
 	case http.MethodPatch:
-		disabled = s.NoUpdate
+		disabled = s.Methods.NotHas(ENDPOINTS_UPDATE)
 		handler = s.Update
 	case http.MethodDelete:
-		disabled = s.NoDelete
+		disabled = s.Methods.NotHas(ENDPOINTS_DELETE)
 		handler = s.Delete
 	case http.MethodOptions:
 		// todo
@@ -83,13 +72,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// todo check accepted types
 }
 
-func (s *Server) Get(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) Get(w http.ResponseWriter, r *http.Request) {
 	var (
 		b []byte
 
 		id     string
 		err    error
-		vals   values.Values
+		vals   *values.Values
 		status = http.StatusOK
 		ctx    = r.Context()
 	)
@@ -120,22 +109,64 @@ func (s *Server) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) List(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) List(w http.ResponseWriter, r *http.Request) {
 	var (
-		b []byte
+		b    []byte
+		err  error
+		c    []repository.Condition
+		vals []values.Values
 
-		p = repository.Pagination{}  // todo
-		c = []repository.Condition{} // todo
+		q = r.URL.Query()
+		p = repository.Pagination{} // todo
 
-		status    = http.StatusOK
-		ctx       = r.Context()
-		vals, err = s.Repo.List(ctx, s.Entity, s.Fields, p, c...)
+		status = http.StatusOK
+		ctx    = r.Context()
 	)
+
+	c, err = repository.ConditionsFromMap(q, s.Fields)
+	if err != nil {
+		status = http.StatusBadRequest
+		err = fmt.Errorf("filters could not be parsed. %w", err)
+	}
+
+	if err == nil {
+		p.Offset, err = web.GetSingleInteger(q, "__offset")
+		if err != nil {
+			status = http.StatusBadRequest
+			err = fmt.Errorf("offset parameter could not be parsed. %w", err)
+		}
+	}
+
+	if err == nil {
+		p.Limit, err = web.GetSingleInteger(q, "__limit")
+		if err != nil {
+			status = http.StatusBadRequest
+			err = fmt.Errorf("limit parameter could not be parsed. %w", err)
+		}
+	}
+
+	if err != nil {
+		// sad
+	} else if v, ok := q["__sort"]; !ok {
+		// not present
+	} else if len(v) != 1 {
+		status = http.StatusBadRequest
+		err = fmt.Errorf("multiple sort values obtained. %w", web.ErrInvalidRequestParameters)
+	} else {
+		p.Order, err = repository.OrderByFromString(v[0], s.Fields)
+		if err != nil {
+			status = http.StatusBadRequest
+			err = fmt.Errorf("sort parameter could not be parsed. %w", web.ErrInvalidRequestParameters)
+		}
+	}
+
+	if err == nil {
+		vals, err = s.Repo.List(ctx, s.Entity, s.Fields, p, c...)
+	}
 
 	if err == repository.ErrNotFound {
 		status = http.StatusNotFound
 	} else if err != nil {
-		//
 		status = http.StatusInternalServerError
 	} else {
 		var data = make([]map[string]interface{}, len(vals))
@@ -150,10 +181,12 @@ func (s *Server) List(w http.ResponseWriter, r *http.Request) {
 
 	if status == http.StatusOK {
 		w.Write(b)
+	} else {
+		w.Write([]byte(`{"error": "` + strings.ReplaceAll(err.Error(), `"`, `\"`) + `"}`))
 	}
 }
 
-func (s *Server) Delete(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) Delete(w http.ResponseWriter, r *http.Request) {
 	var (
 		id     string
 		err    error
@@ -179,9 +212,9 @@ func (s *Server) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 }
 
-func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) Create(w http.ResponseWriter, r *http.Request) {
 	var (
-		vals   values.Values
+		vals   *values.Values
 		err    error
 		id     string
 		b      []byte
@@ -189,7 +222,7 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 		ctx    = r.Context()
 	)
 
-	vals, err = values.FromJSON(r.Body, s.Fields)
+	vals, err = values.FromJSON(r.Body, s.Fields, false)
 	defer gocipe.Closed(r.Body, &err)
 
 	if err == nil {
@@ -215,9 +248,9 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 // Replace an entity by another instance of itself; ids cannot be updated.
-func (s *Server) Replace(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) Replace(w http.ResponseWriter, r *http.Request) {
 	var (
-		vals   values.Values
+		vals   *values.Values
 		err    error
 		id     string
 		b      []byte
@@ -236,7 +269,7 @@ func (s *Server) Replace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err == nil {
-		vals, err = values.FromJSON(r.Body, s.Fields)
+		vals, err = values.FromJSON(r.Body, s.Fields, false)
 		defer gocipe.Closed(r.Body, &err)
 	}
 
@@ -266,9 +299,9 @@ func (s *Server) Replace(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update is partial update of an entity, typically Patch; ids cannot be updated
-func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
+func (s *Resource) Update(w http.ResponseWriter, r *http.Request) {
 	var (
-		vals   values.Values
+		vals   *values.Values
 		err    error
 		id     string
 		b      []byte
@@ -287,7 +320,7 @@ func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err == nil {
-		vals, err = values.FromJSON(r.Body, s.Fields)
+		vals, err = values.FromJSON(r.Body, s.Fields, true)
 		defer gocipe.Closed(r.Body, &err)
 	}
 
@@ -296,15 +329,15 @@ func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
 		err = s.Repo.Update(ctx, s.Entity, id, vals)
 	}
 
-	if err == repository.ErrNotFound {
-		status = http.StatusNotFound
-	} else if err == nil {
+	if err == nil {
 		vals.Set("id", id)
 		var data = vals.ToMap()
 		b, err = json.Marshal(data)
 	}
 
-	if err != nil {
+	if err == repository.ErrNotFound {
+		status = http.StatusNotFound
+	} else if err != nil {
 		status = http.StatusInternalServerError
 	}
 

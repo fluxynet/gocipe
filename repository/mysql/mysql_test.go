@@ -1,13 +1,14 @@
 package mysql
 
 import (
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/fluxynet/gocipe"
 	"github.com/fluxynet/gocipe/fields"
 	"github.com/fluxynet/gocipe/repository"
 	"github.com/fluxynet/gocipe/values"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func compareSlicesOfInterface(t *testing.T, got, want []interface{}) {
@@ -57,10 +58,10 @@ func TestConditionsToWhere(t *testing.T) {
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "name",
-						Operator: repository.Equals,
-						Value:    "Foo",
-						Type:     repository.And,
+						Attribute: "name",
+						Operator:  repository.Equals,
+						Value:     "Foo",
+						Type:      repository.And,
 					},
 				},
 			},
@@ -72,10 +73,10 @@ func TestConditionsToWhere(t *testing.T) {
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "name",
-						Operator: repository.NotEquals,
-						Value:    "Foo",
-						Type:     repository.And,
+						Attribute: "name",
+						Operator:  repository.NotEquals,
+						Value:     "Foo",
+						Type:      repository.And,
 					},
 				},
 			},
@@ -87,10 +88,10 @@ func TestConditionsToWhere(t *testing.T) {
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "age",
-						Operator: repository.GreaterThan,
-						Value:    18,
-						Type:     repository.And,
+						Attribute: "age",
+						Operator:  repository.GreaterThan,
+						Value:     18,
+						Type:      repository.And,
 					},
 				},
 			},
@@ -102,10 +103,10 @@ func TestConditionsToWhere(t *testing.T) {
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "age",
-						Operator: repository.GreaterOrEqualTo,
-						Value:    18,
-						Type:     repository.And,
+						Attribute: "age",
+						Operator:  repository.GreaterOrEqualTo,
+						Value:     18,
+						Type:      repository.And,
 					},
 				},
 			},
@@ -117,10 +118,10 @@ func TestConditionsToWhere(t *testing.T) {
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "age",
-						Operator: repository.LessThan,
-						Value:    18,
-						Type:     repository.And,
+						Attribute: "age",
+						Operator:  repository.LessThan,
+						Value:     18,
+						Type:      repository.And,
 					},
 				},
 			},
@@ -132,10 +133,10 @@ func TestConditionsToWhere(t *testing.T) {
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "age",
-						Operator: repository.LessOrEqualTo,
-						Value:    18,
-						Type:     repository.And,
+						Attribute: "age",
+						Operator:  repository.LessOrEqualTo,
+						Value:     18,
+						Type:      repository.And,
 					},
 				},
 			},
@@ -143,20 +144,65 @@ func TestConditionsToWhere(t *testing.T) {
 			wantArgs: []interface{}{18},
 		},
 		{
+			name: "Like 1",
+			args: args{
+				c: []repository.Condition{
+					{
+						Attribute: "name",
+						Operator:  repository.Like,
+						Value:     "wakanda%",
+						Type:      repository.And,
+					},
+				},
+			},
+			wantSQL:  " WHERE `name` LIKE ?",
+			wantArgs: []interface{}{"wakanda%"},
+		},
+		{
+			name: "Like 2",
+			args: args{
+				c: []repository.Condition{
+					{
+						Attribute: "name",
+						Operator:  repository.Like,
+						Value:     "%wakanda",
+						Type:      repository.And,
+					},
+				},
+			},
+			wantSQL:  " WHERE `name` LIKE ?",
+			wantArgs: []interface{}{"%wakanda"},
+		},
+		{
+			name: "Like 3",
+			args: args{
+				c: []repository.Condition{
+					{
+						Attribute: "name",
+						Operator:  repository.Like,
+						Value:     "%wakanda%",
+						Type:      repository.And,
+					},
+				},
+			},
+			wantSQL:  " WHERE `name` LIKE ?",
+			wantArgs: []interface{}{"%wakanda%"},
+		},
+		{
 			name: "Combination LessOrEqualTo, Equals",
 			args: args{
 				c: []repository.Condition{
 					{
-						Property: "age",
-						Operator: repository.LessOrEqualTo,
-						Value:    18,
-						Type:     repository.And,
+						Attribute: "age",
+						Operator:  repository.LessOrEqualTo,
+						Value:     18,
+						Type:      repository.And,
 					},
 					{
-						Property: "name",
-						Operator: repository.Equals,
-						Value:    "Foo",
-						Type:     repository.And,
+						Attribute: "name",
+						Operator:  repository.Equals,
+						Value:     "Foo",
+						Type:      repository.And,
 					},
 				},
 			},
@@ -180,7 +226,7 @@ func TestConditionsToWhere(t *testing.T) {
 func TestCreate(t *testing.T) {
 	type args struct {
 		entity string
-		vals   values.Values
+		vals   *values.Values
 	}
 
 	tests := []struct {
@@ -192,7 +238,7 @@ func TestCreate(t *testing.T) {
 			name: "No values",
 			args: args{
 				entity: "foo",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -216,7 +262,7 @@ func TestCreate(t *testing.T) {
 			name: "No values, no entity",
 			args: args{
 				entity: "",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -409,10 +455,10 @@ func TestDeleteWhere(t *testing.T) {
 				entity: "persons",
 				c: []repository.Condition{
 					{
-						Property: "age",
-						Operator: repository.LessThan,
-						Value:    18,
-						Type:     repository.And,
+						Attribute: "age",
+						Operator:  repository.LessThan,
+						Value:     18,
+						Type:      repository.And,
 					},
 				},
 			},
@@ -427,16 +473,16 @@ func TestDeleteWhere(t *testing.T) {
 				entity: "products",
 				c: []repository.Condition{
 					{
-						Property: "expiry_date",
-						Operator: repository.LessOrEqualTo,
-						Value:    now,
-						Type:     repository.And,
+						Attribute: "expiry_date",
+						Operator:  repository.LessOrEqualTo,
+						Value:     now,
+						Type:      repository.And,
 					},
 					{
-						Property: "in_stock",
-						Operator: repository.Equals,
-						Value:    true,
-						Type:     repository.And,
+						Attribute: "in_stock",
+						Operator:  repository.Equals,
+						Value:     true,
+						Type:      repository.And,
 					},
 				},
 			},
@@ -563,9 +609,9 @@ func TestList(t *testing.T) {
 				}, Limit: 0},
 				c: []repository.Condition{
 					{
-						Property: "name",
-						Operator: repository.Equals,
-						Value:    "foo",
+						Attribute: "name",
+						Operator:  repository.Equals,
+						Value:     "foo",
 					},
 				},
 			},
@@ -670,9 +716,9 @@ func TestList(t *testing.T) {
 				}),
 				c: []repository.Condition{
 					{
-						Property: "price",
-						Operator: repository.GreaterOrEqualTo,
-						Value:    100.50,
+						Attribute: "price",
+						Operator:  repository.GreaterOrEqualTo,
+						Value:     100.50,
 					},
 				},
 			},
@@ -692,9 +738,9 @@ func TestList(t *testing.T) {
 				p: repository.Pagination{Limit: 100, Offset: 500},
 				c: []repository.Condition{
 					{
-						Property: "height",
-						Operator: repository.LessOrEqualTo,
-						Value:    170,
+						Attribute: "height",
+						Operator:  repository.LessOrEqualTo,
+						Value:     170,
 					},
 				},
 			},
@@ -723,9 +769,9 @@ func TestList(t *testing.T) {
 				}},
 				c: []repository.Condition{
 					{
-						Property: "active",
-						Operator: repository.Equals,
-						Value:    false,
+						Attribute: "active",
+						Operator:  repository.Equals,
+						Value:     false,
 					},
 				},
 			},
@@ -754,9 +800,9 @@ func TestList(t *testing.T) {
 				}, Limit: 50},
 				c: []repository.Condition{
 					{
-						Property: "active",
-						Operator: repository.Equals,
-						Value:    false,
+						Attribute: "active",
+						Operator:  repository.Equals,
+						Value:     false,
 					},
 				},
 			},
@@ -785,9 +831,9 @@ func TestList(t *testing.T) {
 				}, Limit: 50, Offset: 1000},
 				c: []repository.Condition{
 					{
-						Property: "active",
-						Operator: repository.Equals,
-						Value:    false,
+						Attribute: "active",
+						Operator:  repository.Equals,
+						Value:     false,
 					},
 				},
 			},
@@ -816,14 +862,14 @@ func TestList(t *testing.T) {
 				}, Limit: 50},
 				c: []repository.Condition{
 					{
-						Property: "country",
-						Operator: repository.Equals,
-						Value:    "MU",
+						Attribute: "country",
+						Operator:  repository.Equals,
+						Value:     "MU",
 					},
 					{
-						Property: "active",
-						Operator: repository.Equals,
-						Value:    false,
+						Attribute: "active",
+						Operator:  repository.Equals,
+						Value:     false,
 					},
 				},
 			},
@@ -980,7 +1026,7 @@ func TestUpdate(t *testing.T) {
 	type args struct {
 		entity string
 		id     string
-		vals   values.Values
+		vals   *values.Values
 	}
 	tests := []struct {
 		name string
@@ -1006,7 +1052,7 @@ func TestUpdate(t *testing.T) {
 			args: args{
 				entity: "animals",
 				id:     "",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -1018,7 +1064,7 @@ func TestUpdate(t *testing.T) {
 			args: args{
 				entity: "",
 				id:     "",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -1030,7 +1076,7 @@ func TestUpdate(t *testing.T) {
 			args: args{
 				entity: "farm",
 				id:     "00000000-0000-0000-0000-000000000001",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -1082,7 +1128,7 @@ func TestUpdate(t *testing.T) {
 func TestUpdateWhere(t *testing.T) {
 	type args struct {
 		entity string
-		vals   values.Values
+		vals   *values.Values
 		c      []repository.Condition
 	}
 	tests := []struct {
@@ -1099,9 +1145,9 @@ func TestUpdateWhere(t *testing.T) {
 				}),
 				c: []repository.Condition{
 					{
-						Property: "credit",
-						Operator: repository.Equals,
-						Value:    0,
+						Attribute: "credit",
+						Operator:  repository.Equals,
+						Value:     0,
 					},
 				},
 			},
@@ -1114,12 +1160,12 @@ func TestUpdateWhere(t *testing.T) {
 			name: "no values",
 			args: args{
 				entity: "customers",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 				c: []repository.Condition{
 					{
-						Property: "credit",
-						Operator: repository.Equals,
-						Value:    0,
+						Attribute: "credit",
+						Operator:  repository.Equals,
+						Value:     0,
 					},
 				},
 			},
@@ -1132,12 +1178,12 @@ func TestUpdateWhere(t *testing.T) {
 			name: "no entity, no values",
 			args: args{
 				entity: "",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 				c: []repository.Condition{
 					{
-						Property: "credit",
-						Operator: repository.Equals,
-						Value:    0,
+						Attribute: "credit",
+						Operator:  repository.Equals,
+						Value:     0,
 					},
 				},
 			},
@@ -1164,7 +1210,7 @@ func TestUpdateWhere(t *testing.T) {
 			name: "no entity, no values, no conditions",
 			args: args{
 				entity: "",
-				vals:   values.Values{},
+				vals:   &values.Values{},
 				c:      nil,
 			},
 			want: Query{
@@ -1181,9 +1227,9 @@ func TestUpdateWhere(t *testing.T) {
 				}),
 				c: []repository.Condition{
 					{
-						Property: "credit",
-						Operator: repository.Equals,
-						Value:    0,
+						Attribute: "credit",
+						Operator:  repository.Equals,
+						Value:     0,
 					},
 				},
 			},
@@ -1201,14 +1247,14 @@ func TestUpdateWhere(t *testing.T) {
 				}),
 				c: []repository.Condition{
 					{
-						Property: "credit",
-						Operator: repository.NotEquals,
-						Value:    0,
+						Attribute: "credit",
+						Operator:  repository.NotEquals,
+						Value:     0,
 					},
 					{
-						Property: "service_count",
-						Operator: repository.GreaterOrEqualTo,
-						Value:    1,
+						Attribute: "service_count",
+						Operator:  repository.GreaterOrEqualTo,
+						Value:     1,
 					},
 				},
 			},
@@ -1228,7 +1274,7 @@ func TestUpdateWhere(t *testing.T) {
 
 func TestValuesToSet(t *testing.T) {
 	type args struct {
-		vals values.Values
+		vals *values.Values
 	}
 	tests := []struct {
 		name     string
@@ -1239,7 +1285,7 @@ func TestValuesToSet(t *testing.T) {
 		{
 			name: "0 values",
 			args: args{
-				vals: values.Values{},
+				vals: &values.Values{},
 			},
 			wantSet:  "",
 			wantArgs: nil,

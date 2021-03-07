@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"github.com/fluxynet/gocipe/fields"
 	"github.com/fluxynet/gocipe/repository"
 	"github.com/fluxynet/gocipe/values"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -19,7 +20,8 @@ func init() {
 }
 
 type Repo struct {
-	db *mongo.Database
+	db  *mongo.Database
+	cli *mongo.Client
 }
 
 // New repo with mongo
@@ -29,45 +31,46 @@ func New(dbname, uri string) (repository.Repositorium, error) {
 		return nil, err
 	}
 
-	var ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
+	var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	err = client.Connect(ctx)
+
 	if err != nil {
 		return nil, err
 	}
 
-	var repo = &Repo{db: client.Database(dbname)}
+	var repo = &Repo{db: client.Database(dbname), cli: client}
 
 	return repo, err
 }
 
 // Get a single Entity by id
-func (r Repo) Get(ctx context.Context, entity string, f fields.Fields, id string) (values.Values, error) {
+func (r Repo) Get(ctx context.Context, entity string, f fields.Fields, id string) (*values.Values, error) {
 	var (
-		err   error
 		vals  values.Values
 		datum = f.GetEmptyValues()
 	)
 
-	err = r.db.Collection(entity).FindOne(ctx, bson.D{{
-		Key:   "_id",
-		Value: id,
-	}}).Decode(&datum)
+	var oid, err = primitive.ObjectIDFromHex(id)
+	if err == nil {
+		err = r.db.Collection(entity).FindOne(ctx, bson.M{"_id": oid}).Decode(&datum)
+	}
 
 	if err == mongo.ErrNoDocuments {
 		err = repository.ErrNotFound
 	}
 
 	if err != nil {
-		return vals, err
+		return nil, err
 	}
 
 	vals.FromMap(datum)
 	if v := vals.Get("_id"); v != nil {
-		vals.Set("id", v)
+		vals.Set("id", v.Value)
 		vals.Unset("_id")
 	}
 
-	return vals, nil
+	return &vals, nil
 }
 
 // List multiple Entity with pagination rules and conditions
@@ -76,8 +79,13 @@ func (r *Repo) List(ctx context.Context, entity string, f fields.Fields, p repos
 		err     error
 		data    []values.Values
 		cursor  *mongo.Cursor
-		filters = ConditionsToBsonD(c)
+		filters bson.D
 	)
+
+	filters, err = ConditionsToBsonD(c)
+	if err != nil {
+		return nil, err
+	}
 
 	// todo(fx) pagination
 
@@ -96,23 +104,26 @@ func (r *Repo) List(ctx context.Context, entity string, f fields.Fields, p repos
 
 		var vals = values.FromMap(datum)
 		if v := vals.Get("_id"); v != nil {
-			vals.Set("id", v)
+			vals.Set("id", v.Value)
 			vals.Unset("_id")
 		}
-		data = append(data, vals)
+
+		data = append(data, *vals)
 	}
 
-	return nil, err
+	return data, err
 }
 
 // Delete a single Entity by id
 func (r *Repo) Delete(ctx context.Context, entity, id string) error {
-	result, err := r.db.Collection(entity).DeleteOne(ctx, bson.D{{
-		Key:   "_id",
-		Value: id,
-	}})
+	var oid, err = primitive.ObjectIDFromHex(id)
 
-	if err == nil && result.DeletedCount == 0 {
+	var res *mongo.DeleteResult
+	if err == nil {
+		res, err = r.db.Collection(entity).DeleteOne(ctx, bson.M{"_id": oid})
+	}
+
+	if err == nil && res.DeletedCount == 0 {
 		err = repository.ErrNotFound
 	}
 
@@ -123,8 +134,13 @@ func (r *Repo) Delete(ctx context.Context, entity, id string) error {
 func (r *Repo) DeleteWhere(ctx context.Context, entity string, c ...repository.Condition) error {
 	var (
 		err     error
-		filters = ConditionsToBsonD(c)
+		filters bson.D
 	)
+
+	filters, err = ConditionsToBsonD(c)
+	if err != nil {
+		return err
+	}
 
 	_, err = r.db.Collection(entity).DeleteMany(ctx, filters)
 
@@ -132,7 +148,7 @@ func (r *Repo) DeleteWhere(ctx context.Context, entity string, c ...repository.C
 }
 
 // Create a new Entity in persistent storage
-func (r *Repo) Create(ctx context.Context, entity string, vals values.Values) (string, error) {
+func (r *Repo) Create(ctx context.Context, entity string, vals *values.Values) (string, error) {
 	var (
 		data bson.M
 		rs   *mongo.InsertOneResult
@@ -148,28 +164,27 @@ func (r *Repo) Create(ctx context.Context, entity string, vals values.Values) (s
 	}
 
 	if v, ok := rs.InsertedID.(primitive.ObjectID); ok {
-		id = v.String()
+		id = v.Hex()
 	}
 
 	return id, err
 }
 
 // Update an existing Entity in persistent storage
-func (r *Repo) Update(ctx context.Context, entity string, id string, vals values.Values) error {
+func (r *Repo) Update(ctx context.Context, entity string, id string, vals *values.Values) error {
 	var (
-		err    error
 		result *mongo.UpdateResult
 		data   = ValuesToBsonM(vals)
 	)
 
 	vals.Unset("id") // mongo has its own representation of id as _id
 
-	result, err = r.db.Collection(entity).UpdateOne(ctx, bson.D{{
-		Key:   "_id",
-		Value: id,
-	}}, data)
+	var oid, err = primitive.ObjectIDFromHex(id)
+	if err == nil {
+		result, err = r.db.Collection(entity).UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": data})
+	}
 
-	if err == nil && result.UpsertedCount == 0 {
+	if err == nil && result.MatchedCount == 0 {
 		err = repository.ErrNotFound
 	}
 
@@ -177,15 +192,28 @@ func (r *Repo) Update(ctx context.Context, entity string, id string, vals values
 }
 
 // UpdateValuesWhere Values in persistent storage
-func (r *Repo) UpdateValues(ctx context.Context, entity string, vals values.Values, c ...repository.Condition) error {
+func (r *Repo) UpdateWhere(ctx context.Context, entity string, vals *values.Values, c ...repository.Condition) error {
 	var (
-		err error
-
-		filters = ConditionsToBsonD(c)
+		err     error
+		filters bson.D
 		data    = ValuesToBsonM(vals)
 	)
+
+	filters, err = ConditionsToBsonD(c)
+	if err != nil {
+		return err
+	}
 
 	_, err = r.db.Collection(entity).UpdateMany(ctx, filters, data)
 
 	return err
+}
+
+// Close db connection
+func (r *Repo) Close() error {
+	if r.db == nil {
+		return nil
+	}
+
+	return r.cli.Disconnect(nil)
 }

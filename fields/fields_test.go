@@ -1,8 +1,9 @@
 package fields
 
 import (
-	"github.com/fluxynet/gocipe"
 	"testing"
+
+	"github.com/fluxynet/gocipe"
 )
 
 type node struct {
@@ -31,40 +32,6 @@ func checkValuesPresent(t *testing.T, want []node, got Fields) {
 
 		if want[i].kind != v {
 			t.Errorf("want: %s got: %s\n", want[i].name, v)
-			return
-		}
-	}
-}
-
-func compareValues(t *testing.T, want, got Fields) {
-	var lw = want.Length()
-	var lg = got.Length()
-
-	if lw != lg {
-		t.Errorf("wantLength = %d\ngotLength = %d\n", lw, lg)
-		return
-	} else if lg == 0 {
-		return
-	}
-
-	var wit = want.Iterator()
-	var git = got.Iterator()
-	for wit.Next() && git.Next() {
-		w := wit.Field()
-		g := git.Field()
-
-		if w.Name != g.Name {
-			t.Errorf("[name] want: %s\ngot: %s\n", w.Name, g.Name)
-			return
-		}
-
-		if w.Kind != g.Kind {
-			t.Errorf("[name] want: %s\ngot: %s\n", w.Kind, g.Kind)
-			return
-		}
-
-		if w.Required != g.Required {
-			t.Errorf("[name] want: %v\ngot: %v\n", w.Required, g.Required)
 			return
 		}
 	}
@@ -194,16 +161,6 @@ func TestFields_String(t *testing.T) {
 				{name: "name", kind: gocipe.String},
 			},
 			want: "is_active:bool, name:string",
-		},
-		{
-			name: "values with required",
-			nodes: []node{
-				{name: "is_active", kind: gocipe.Bool},
-				{name: "+name", kind: gocipe.String},
-				{name: "age", kind: gocipe.Int64},
-				{name: "+credits", kind: gocipe.Float64},
-			},
-			want: "is_active:bool, name:string!, age:int64, credits:float64!",
 		},
 		{
 			name: "one of each kind",

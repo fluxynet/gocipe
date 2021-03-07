@@ -5,19 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/fluxynet/gocipe"
+	"github.com/fluxynet/gocipe/fields"
 )
 
 var (
 	// ErrValueMissing is when a value is expected but not found from http.Request
 	ErrValueMissing = errors.New("mandatory value missing")
-
-	// ErrInvalidValue is when a value sent is invalid
-	ErrInvalidValue = errors.New("invalid value provided")
 )
 
 var (
@@ -89,12 +87,16 @@ type Values struct {
 }
 
 // IsEmpty checks if there are any values in the set
-func (v Values) IsEmpty() bool {
+func (v *Values) IsEmpty() bool {
 	return v.head == nil
 }
 
 // Length of the value set
-func (v Values) Length() int {
+func (v *Values) Length() int {
+	if v.items == nil {
+		return 0
+	}
+
 	return len(v.items)
 }
 
@@ -121,7 +123,7 @@ func (v *Values) Set(name string, value interface{}) {
 }
 
 // Get returns raw Value
-func (v Values) Get(name string) *Value {
+func (v *Values) Get(name string) *Value {
 	if v.head == nil {
 		return nil
 	}
@@ -130,10 +132,10 @@ func (v Values) Get(name string) *Value {
 }
 
 // Unset removes a value item
-func (v Values) Unset(name string) Values {
+func (v *Values) Unset(name string) *Values {
 	var d, ok = v.items[name]
 	if !ok {
-		 return v
+		return v
 	}
 
 	if d.prev == nil { // only one in list
@@ -151,7 +153,7 @@ func (v Values) Unset(name string) Values {
 }
 
 // ToMap Returns a map[string]interface{} representation of the list
-func (v Values) ToMap() map[string]interface{} {
+func (v *Values) ToMap() map[string]interface{} {
 	var m = make(map[string]interface{}, len(v.items))
 	var it = v.Iterator()
 
@@ -164,7 +166,7 @@ func (v Values) ToMap() map[string]interface{} {
 }
 
 // FromMap sets values from a map into the Values set
-func (v Values) FromMap(m map[string]interface{}) Values {
+func (v *Values) FromMap(m map[string]interface{}) *Values {
 	for key, val := range m {
 		v.Set(key, val)
 	}
@@ -173,7 +175,7 @@ func (v Values) FromMap(m map[string]interface{}) Values {
 }
 
 // FromPairs sets Values from a slice of Value
-func (v Values) FromPairs(p []Value) Values {
+func (v *Values) FromPairs(p []Value) *Values {
 	for i := range p {
 		v.Set(p[i].Name, p[i].Value)
 	}
@@ -182,40 +184,40 @@ func (v Values) FromPairs(p []Value) Values {
 }
 
 // FromMap initiates a Values structure from a map
-func FromMap(m map[string]interface{}) Values {
+func FromMap(m map[string]interface{}) *Values {
 	var values Values
 
 	for key, val := range m {
 		values.Set(key, val)
 	}
 
-	return values
+	return &values
 }
 
 // FromPairs initiates a Values structure from a slice of Value
-func FromPairs(p []Value) Values {
+func FromPairs(p []Value) *Values {
 	var vals Values
 	for i := range p {
 		vals.Set(p[i].Name, p[i].Value)
 	}
 
-	return vals
+	return &vals
 }
 
 // FromJSON returns values from an http.Request
-func FromJSON(r io.ReadCloser, f fields.Fields) (Values, error) {
+func FromJSON(r io.ReadCloser, f fields.Fields, allowPartial bool) (*Values, error) {
 	var b, err = io.ReadAll(r)
 	defer gocipe.Closed(r, &err)
 
 	if err != nil {
-		return Values{}, err
+		return nil, err
 	}
 
 	var m = make(map[string]json.RawMessage, f.Length())
 
 	err = json.Unmarshal(b, &m)
 	if err != nil {
-		return Values{}, err
+		return nil, err
 	}
 
 	var vals Values
@@ -226,8 +228,13 @@ func FromJSON(r io.ReadCloser, f fields.Fields) (Values, error) {
 		var v, ok = m[i.Name]
 		var x interface{}
 
-		if i.Required && !ok {
-			return vals, ErrValueMissing
+		if ok {
+			// will deal with it later
+		} else if allowPartial {
+			continue // it is missing but document is partial, skip
+		} else {
+			vals.Set(i.Name, gocipe.DefaultValue(i.Kind)) // set it to default
+			continue
 		}
 
 		switch i.Kind {
@@ -238,7 +245,7 @@ func FromJSON(r io.ReadCloser, f fields.Fields) (Values, error) {
 			if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
 				x = strings.TrimSuffix(strings.TrimPrefix(s, `"`), `"`)
 			} else {
-				err = ErrInvalidValue
+				err = gocipe.ErrInvalidValue
 			}
 		case gocipe.Int64:
 			x, err = strconv.Atoi(string(v))
@@ -247,16 +254,16 @@ func FromJSON(r io.ReadCloser, f fields.Fields) (Values, error) {
 		}
 
 		if err != nil {
-			return vals, err
+			return nil, err
 		}
 
 		vals.Set(i.Name, x)
 	}
 
-	return vals, nil
+	return &vals, nil
 }
 
-func (v Values) String() string {
+func (v *Values) String() string {
 	var (
 		s  []string
 		it = v.Iterator()
@@ -271,7 +278,7 @@ func (v Values) String() string {
 }
 
 // Iterator returns an iterator to loop though values based on order
-func (v Values) Iterator() Iterator {
+func (v *Values) Iterator() Iterator {
 	return &iterator{head: v.head}
 }
 
