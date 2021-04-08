@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
 	"github.com/fluxynet/gocipe/repository"
+	"github.com/fluxynet/gocipe/types/fields/entity"
+	"github.com/fluxynet/gocipe/util"
 	"github.com/fluxynet/gocipe/values"
 )
 
@@ -16,7 +16,7 @@ func init() {
 	var _ repository.Repositorium = &Repo{}
 }
 
-// EntityRepo is an implementation of EntityRepository to allow persistence of Entity
+// EntityRepo is an implementation of EntityRepository to allow persistence of Name
 type Repo struct {
 	db *sql.DB
 }
@@ -25,17 +25,18 @@ func New(db *sql.DB) Repo {
 	return Repo{db}
 }
 
-// Get a single Entity by id
-func (r *Repo) Get(ctx context.Context, entity string, f fields.Fields, id string) (*values.Values, error) {
+// Get a single Name by id
+func (r *Repo) Get(ctx context.Context, entity entity.Entity, id string) (*values.Values, error) {
 	var (
 		vals values.Values
-		q    = Get(entity, f, id)
+		q    = Get(entity, id)
+		f    = entity.Fields()
 		it   = f.Iterator()
 		dst  = GetScanDest(f)
 	)
 
 	var rs, err = r.db.QueryContext(ctx, q.SQL, q.Args...)
-	defer gocipe.Closed(rs, &err)
+	defer util.Closed(rs, &err)
 
 	if err == sql.ErrNoRows {
 		err = repository.ErrNotFound
@@ -59,15 +60,16 @@ func (r *Repo) Get(ctx context.Context, entity string, f fields.Fields, id strin
 	return &vals, err
 }
 
-// List multiple Entity with pagination rules and conditions
-func (r *Repo) List(ctx context.Context, entity string, f fields.Fields, p repository.Pagination, c ...repository.Condition) ([]values.Values, error) {
+// List multiple Name with pagination rules and conditions
+func (r *Repo) List(ctx context.Context, entity entity.Entity, p repository.Pagination, c ...repository.Condition) ([]values.Values, error) {
 	var (
 		l []values.Values
-		q = List(entity, f, p, c...)
+		q = List(entity, p, c...)
+		f = entity.Fields()
 	)
 
 	var rs, err = r.db.QueryContext(ctx, q.SQL, q.Args...)
-	defer gocipe.Closed(rs, &err)
+	defer util.Closed(rs, &err)
 
 	if err != nil {
 		return nil, err
@@ -94,9 +96,9 @@ func (r *Repo) List(ctx context.Context, entity string, f fields.Fields, p repos
 	return l, err
 }
 
-// Delete a single Entity by id
-func (r *Repo) Delete(ctx context.Context, entity, id string) error {
-	var q = Delete(entity, id)
+// Delete a single Name by id
+func (r *Repo) Delete(ctx context.Context, named repository.Named, id string) error {
+	var q = Delete(named, id)
 	var res, err = r.db.ExecContext(ctx, q.SQL, q.Args...)
 	var n int64
 
@@ -111,15 +113,15 @@ func (r *Repo) Delete(ctx context.Context, entity, id string) error {
 	return err
 }
 
-// DeleteWhere delete multiple Entity based on conditions
-func (r *Repo) DeleteWhere(ctx context.Context, entity string, c ...repository.Condition) error {
-	var q = DeleteWhere(entity, c...)
+// DeleteWhere delete multiple Name based on conditions
+func (r *Repo) DeleteWhere(ctx context.Context, named repository.Named, c ...repository.Condition) error {
+	var q = DeleteWhere(named, c...)
 	var _, err = r.db.ExecContext(ctx, q.SQL, q.Args...)
 	return err
 }
 
-// Create a new Entity in persistent storage
-func (r *Repo) Create(ctx context.Context, entity string, vals *values.Values) (string, error) {
+// Create a new Name in persistent storage
+func (r *Repo) Create(ctx context.Context, named repository.Named, vals *values.Values) (string, error) {
 	var (
 		q   Query
 		err error
@@ -129,19 +131,19 @@ func (r *Repo) Create(ctx context.Context, entity string, vals *values.Values) (
 	id = uuid.NewString()
 	vals.Set("id", id)
 
-	q = Create(entity, vals)
+	q = Create(named, vals)
 
 	_, err = r.db.ExecContext(ctx, q.SQL, q.Args...)
 
 	return id, err
 }
 
-// Update an existing Entity in persistent storage
-func (r *Repo) Update(ctx context.Context, entity string, id string, vals *values.Values) error {
+// Update an existing Name in persistent storage
+func (r *Repo) Update(ctx context.Context, named repository.Named, id string, vals *values.Values) error {
 	vals.Unset("id")
 
 	var q = Update(
-		entity,
+		named,
 		id,
 		vals,
 	)
@@ -161,9 +163,9 @@ func (r *Repo) Update(ctx context.Context, entity string, id string, vals *value
 }
 
 // UpdateValuesWhere Values in persistent storage
-func (r *Repo) UpdateWhere(ctx context.Context, entity string, vals *values.Values, c ...repository.Condition) error {
+func (r *Repo) UpdateWhere(ctx context.Context, named repository.Named, vals *values.Values, c ...repository.Condition) error {
 	var q = UpdateWhere(
-		entity,
+		named,
 		vals,
 		c...,
 	)

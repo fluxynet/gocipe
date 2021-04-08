@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/types/fields"
+	"github.com/fluxynet/gocipe/util"
 )
 
 var (
@@ -174,7 +175,7 @@ func (v *Values) FromMap(m map[string]interface{}) *Values {
 	return v
 }
 
-// FromPairs sets Values from a slice of Value
+// FromSlice sets Values from a slice of Value
 func (v *Values) FromPairs(p []Value) *Values {
 	for i := range p {
 		v.Set(p[i].Name, p[i].Value)
@@ -194,8 +195,8 @@ func FromMap(m map[string]interface{}) *Values {
 	return &values
 }
 
-// FromPairs initiates a Values structure from a slice of Value
-func FromPairs(p []Value) *Values {
+// FromSlice initiates a Values structure from a slice of Value
+func FromSlice(p []Value) *Values {
 	var vals Values
 	for i := range p {
 		vals.Set(p[i].Name, p[i].Value)
@@ -207,7 +208,7 @@ func FromPairs(p []Value) *Values {
 // FromJSON returns values from an http.Request
 func FromJSON(r io.ReadCloser, f fields.Fields, allowPartial bool) (*Values, error) {
 	var b, err = io.ReadAll(r)
-	defer gocipe.Closed(r, &err)
+	defer util.Closed(r, &err)
 
 	if err != nil {
 		return nil, err
@@ -233,23 +234,23 @@ func FromJSON(r io.ReadCloser, f fields.Fields, allowPartial bool) (*Values, err
 		} else if allowPartial {
 			continue // it is missing but document is partial, skip
 		} else {
-			vals.Set(i.Name, gocipe.DefaultValue(i.Kind)) // set it to default
+			vals.Set(i.Name, types.Default(i.Kind)) // set it to default
 			continue
 		}
 
 		switch i.Kind {
-		case gocipe.Bool:
+		case types.Bool:
 			x = bytes.Equal(v, boolTrue)
-		case gocipe.String:
+		case types.String:
 			var s = string(v)
 			if strings.HasPrefix(s, `"`) && strings.HasSuffix(s, `"`) {
 				x = strings.TrimSuffix(strings.TrimPrefix(s, `"`), `"`)
 			} else {
-				err = gocipe.ErrInvalidValue
+				err = types.ErrInvalidValue
 			}
-		case gocipe.Int64:
+		case types.Int64:
 			x, err = strconv.Atoi(string(v))
-		case gocipe.Float64:
+		case types.Float64:
 			x, err = strconv.ParseFloat(string(v), 64)
 		}
 

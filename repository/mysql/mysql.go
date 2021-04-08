@@ -1,11 +1,13 @@
 package mysql
 
 import (
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
-	"github.com/fluxynet/gocipe/values"
 	"strconv"
 	"strings"
+
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/types/fields"
+	"github.com/fluxynet/gocipe/types/fields/entity"
+	"github.com/fluxynet/gocipe/values"
 
 	"github.com/fluxynet/gocipe/repository"
 )
@@ -38,15 +40,19 @@ func SelectFieldNames(f fields.Fields) string {
 }
 
 // Get generates Query for a SELECT operation (by id)
-func Get(entity string, f fields.Fields, id string) Query {
-	var n = f.Length()
+func Get(entity entity.Entity, id string) Query {
+	var (
+		name = entity.Name()
+		f    = entity.Fields()
+		n    = f.Length()
+	)
 
-	if n == 0 || entity == "" || id == "" {
+	if n == 0 || name == "" || id == "" {
 		return Query{}
 	}
 
 	return Query{
-		SQL:  "SELECT " + SelectFieldNames(f) + " FROM `" + entity + "` WHERE `id` = ?",
+		SQL:  "SELECT " + SelectFieldNames(f) + " FROM `" + name + "` WHERE `id` = ?",
 		Args: []interface{}{id},
 	}
 }
@@ -173,10 +179,14 @@ func PaginationToOrderBy(p repository.Pagination) string {
 }
 
 // List returns a list of entities retrieved from mysql based on conditions
-func List(entity string, f fields.Fields, p repository.Pagination, c ...repository.Condition) Query {
-	var q = Query{}
+func List(entity entity.Entity, p repository.Pagination, c ...repository.Condition) Query {
+	var (
+		name = entity.Name()
+		f    = entity.Fields()
+		q    = Query{}
+	)
 
-	if entity == "" || f.IsEmpty() {
+	if name == "" || f.IsEmpty() {
 		return q
 	}
 
@@ -185,30 +195,32 @@ func List(entity string, f fields.Fields, p repository.Pagination, c ...reposito
 	pagination = PaginationToOrderBy(p)
 
 	where, q.Args = ConditionsToWhere(c)
-	q.SQL = "SELECT " + SelectFieldNames(f) + " FROM `" + entity + "`" + where + pagination
+	q.SQL = "SELECT " + SelectFieldNames(f) + " FROM `" + name + "`" + where + pagination
 
 	return q
 }
 
 // Delete generates Query for a DELETE operation (by id)
-func Delete(entity, id string) Query {
-	if entity == "" || id == "" {
+func Delete(named repository.Named, id string) Query {
+	var name = named.Name()
+	if name == "" || id == "" {
 		return Query{}
 	}
 
 	return Query{
-		SQL:  "DELETE FROM `" + entity + "` WHERE `id` = ?",
+		SQL:  "DELETE FROM `" + name + "` WHERE `id` = ?",
 		Args: []interface{}{id},
 	}
 }
 
 // DeleteWhere generates Query for a DELETE operation (based on 1 or more conditions)
-func DeleteWhere(entity string, c ...repository.Condition) Query {
-	if entity == "" {
+func DeleteWhere(named repository.Named, c ...repository.Condition) Query {
+	var name = named.Name()
+	if name == "" {
 		return Query{}
 	}
 
-	var sql = "DELETE FROM `" + entity + "`"
+	var sql = "DELETE FROM `" + name + "`"
 	var where, args = ConditionsToWhere(c)
 
 	var q = Query{
@@ -219,8 +231,10 @@ func DeleteWhere(entity string, c ...repository.Condition) Query {
 }
 
 // Create generates Query for an INSERT INTO operation
-func Create(entity string, vals *values.Values) Query {
-	if entity == "" || vals.IsEmpty() {
+func Create(named repository.Named, vals *values.Values) Query {
+	var name = named.Name()
+
+	if name == "" || vals.IsEmpty() {
 		return Query{}
 	}
 
@@ -243,7 +257,7 @@ func Create(entity string, vals *values.Values) Query {
 		q.Args[i] = v.Value
 	}
 
-	q.SQL = "INSERT INTO `" + entity + "` (" + strings.Join(m, ",") + ") VALUES (" + strings.Join(p, ",") + ")"
+	q.SQL = "INSERT INTO `" + name + "` (" + strings.Join(m, ",") + ") VALUES (" + strings.Join(p, ",") + ")"
 
 	return q
 }
@@ -272,22 +286,26 @@ func ValuesToSet(vals *values.Values) (set string, args []interface{}) {
 }
 
 // Update generates Query for an UPDATE ... WHERE id = ? query
-func Update(entity string, id string, vals *values.Values) Query {
-	if entity == "" || id == "" || vals.IsEmpty() {
+func Update(named repository.Named, id string, vals *values.Values) Query {
+	var name = named.Name()
+
+	if name == "" || id == "" || vals.IsEmpty() {
 		return Query{}
 	}
 
 	var set, args = ValuesToSet(vals)
 
 	return Query{
-		SQL:  "UPDATE `" + entity + "` " + set + " WHERE `id` = ?",
+		SQL:  "UPDATE `" + name + "` " + set + " WHERE `id` = ?",
 		Args: append(args, id),
 	}
 }
 
 // UpdateWhere generates Query for an UPDATE ... WHERE ... query
-func UpdateWhere(entity string, vals *values.Values, c ...repository.Condition) Query {
-	if entity == "" || vals.IsEmpty() {
+func UpdateWhere(named repository.Named, vals *values.Values, c ...repository.Condition) Query {
+	var name = named.Name()
+
+	if name == "" || vals.IsEmpty() {
 		return Query{}
 	}
 
@@ -295,7 +313,7 @@ func UpdateWhere(entity string, vals *values.Values, c ...repository.Condition) 
 	var where, argw = ConditionsToWhere(c)
 
 	return Query{
-		SQL:  "UPDATE `" + entity + "` " + set + where,
+		SQL:  "UPDATE `" + name + "` " + set + where,
 		Args: append(args, argw...),
 	}
 }
@@ -308,7 +326,7 @@ func GetScanDest(f fields.Fields) []interface{} {
 	)
 
 	for i := 0; it.Next(); i++ {
-		dst[i] = gocipe.DefaultPointer(it.Field().Kind)
+		dst[i] = types.New(it.Field().Kind)
 	}
 
 	return dst

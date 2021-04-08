@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/types/fields"
 )
 
 func compareOrderBys(t *testing.T, got, want []OrderBy) {
@@ -93,9 +93,9 @@ func TestParseOrderBy(t *testing.T) {
 			name: "In string not in fields",
 			args: args{
 				s: "name,age",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "country", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "country", Kind: types.String},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -104,9 +104,9 @@ func TestParseOrderBy(t *testing.T) {
 			name: "In fields not in string",
 			args: args{
 				s: "",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "town", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "town", Kind: types.String},
+				),
 			},
 			want:    []OrderBy{},
 			wantErr: false,
@@ -115,11 +115,11 @@ func TestParseOrderBy(t *testing.T) {
 			name: "1 single asc",
 			args: args{
 				s: "country",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "country", Kind: gocipe.String},
-					{Name: "town", Kind: gocipe.String},
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "country", Kind: types.String},
+					fields.Field{Name: "town", Kind: types.String},
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want: []OrderBy{
 				{Attribute: "country", Sort: Ascending},
@@ -130,11 +130,11 @@ func TestParseOrderBy(t *testing.T) {
 			name: "2 ascending",
 			args: args{
 				s: "country,name",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "country", Kind: gocipe.String},
-					{Name: "town", Kind: gocipe.String},
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "country", Kind: types.String},
+					fields.Field{Name: "town", Kind: types.String},
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want: []OrderBy{
 				{Attribute: "country", Sort: Ascending},
@@ -146,11 +146,11 @@ func TestParseOrderBy(t *testing.T) {
 			name: "1 single desc",
 			args: args{
 				s: "-country",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "country", Kind: gocipe.String},
-					{Name: "town", Kind: gocipe.String},
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "country", Kind: types.String},
+					fields.Field{Name: "town", Kind: types.String},
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want: []OrderBy{
 				{Attribute: "country", Sort: Descending},
@@ -161,11 +161,11 @@ func TestParseOrderBy(t *testing.T) {
 			name: "2 descending",
 			args: args{
 				s: "-country,-town",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "country", Kind: gocipe.String},
-					{Name: "town", Kind: gocipe.String},
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "country", Kind: types.String},
+					fields.Field{Name: "town", Kind: types.String},
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want: []OrderBy{
 				{Attribute: "country", Sort: Descending},
@@ -177,11 +177,11 @@ func TestParseOrderBy(t *testing.T) {
 			name: "2 asc 1 desc",
 			args: args{
 				s: "country,-town,name",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "country", Kind: gocipe.String},
-					{Name: "town", Kind: gocipe.String},
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "country", Kind: types.String},
+					fields.Field{Name: "town", Kind: types.String},
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want: []OrderBy{
 				{Attribute: "country", Sort: Ascending},
@@ -223,7 +223,7 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"name": {"foobar"},
 				},
-				f: fields.FromPairs([]fields.Field{}),
+				f: fields.From(),
 			},
 			want:    nil,
 			wantErr: false,
@@ -232,9 +232,9 @@ func TestConditionsFromMap(t *testing.T) {
 			name: "Empty Map",
 			args: args{
 				m: map[string][]string{},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want:    nil,
 			wantErr: false,
@@ -245,9 +245,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"active": {"True"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -258,9 +258,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"active": {"No"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -271,9 +271,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"active": {"0"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -284,9 +284,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"active": {"gt:true"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -297,9 +297,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"active": {"true"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+				),
 			},
 			want: []Condition{
 				{Attribute: "active", Operator: Equals, Value: true},
@@ -312,9 +312,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"active": {"false"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+				),
 			},
 			want: []Condition{
 				{Attribute: "active", Operator: Equals, Value: false},
@@ -327,9 +327,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"name": {"foo"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want: []Condition{
 				{Attribute: "name", Operator: Equals, Value: "foo"},
@@ -342,9 +342,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"name": {"foo:"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "name", Kind: types.String},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -355,9 +355,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"price": {"12500"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "price", Kind: gocipe.Int64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "price", Kind: types.Int64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "price", Operator: Equals, Value: int64(12500)},
@@ -370,9 +370,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"price": {":12500"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "price", Kind: gocipe.Int64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "price", Kind: types.Int64},
+				),
 			},
 			want:    nil,
 			wantErr: true,
@@ -383,9 +383,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"pi": {"3.14159265"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "pi", Kind: gocipe.Float64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "pi", Kind: types.Float64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "pi", Operator: Equals, Value: 3.14159265},
@@ -398,9 +398,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"stock": {"eq:100"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "stock", Kind: gocipe.Int64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "stock", Kind: types.Int64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "stock", Operator: Equals, Value: int64(100)},
@@ -413,9 +413,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"pi": {"ne:3.14159265"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "pi", Kind: gocipe.Float64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "pi", Kind: types.Float64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "pi", Operator: NotEquals, Value: 3.14159265},
@@ -428,9 +428,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"pi": {"gt:3.14159265"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "pi", Kind: gocipe.Float64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "pi", Kind: types.Float64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "pi", Operator: GreaterThan, Value: 3.14159265},
@@ -443,9 +443,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"pi": {"gte:3.14159265"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "pi", Kind: gocipe.Float64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "pi", Kind: types.Float64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "pi", Operator: GreaterOrEqualTo, Value: 3.14159265},
@@ -458,9 +458,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"stock": {"lt:10"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "stock", Kind: gocipe.Int64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "stock", Kind: types.Int64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "stock", Operator: LessThan, Value: int64(10)},
@@ -473,9 +473,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"created_at": {"lte:2006-01-02T15:04:05Z07:00"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "created_at", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "created_at", Kind: types.String},
+				),
 			},
 			want: []Condition{
 				{Attribute: "created_at", Operator: LessOrEqualTo, Value: "2006-01-02T15:04:05Z07:00"},
@@ -488,9 +488,9 @@ func TestConditionsFromMap(t *testing.T) {
 				m: map[string][]string{
 					"created_at": {"lte:2006-01-02T15:04:05Z07:00", "lte:2006-01-02T15:04:05Z07:00"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "created_at", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "created_at", Kind: types.String},
+				),
 			},
 			want:    []Condition{},
 			wantErr: false,
@@ -502,10 +502,10 @@ func TestConditionsFromMap(t *testing.T) {
 					"stock": {"lt:10"},
 					"pi":    {"gt:3.14159265"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "stock", Kind: gocipe.Int64},
-					{Name: "pi", Kind: gocipe.Float64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "stock", Kind: types.Int64},
+					fields.Field{Name: "pi", Kind: types.Float64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "stock", Operator: LessThan, Value: int64(10)},
@@ -520,10 +520,10 @@ func TestConditionsFromMap(t *testing.T) {
 					"created_at": {"lte:2006-01-02T15:04:05Z07:00"},
 					"active":     {"true"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "active", Kind: gocipe.Bool},
-					{Name: "created_at", Kind: gocipe.String},
-				}),
+				f: fields.From(
+					fields.Field{Name: "active", Kind: types.Bool},
+					fields.Field{Name: "created_at", Kind: types.String},
+				),
 			},
 			want: []Condition{
 				{Attribute: "active", Operator: Equals, Value: true},
@@ -539,11 +539,11 @@ func TestConditionsFromMap(t *testing.T) {
 					"pi":         {"gt:3.14159265"},
 					"created_at": {"lte:2006-01-02T15:04:05Z07:00"},
 				},
-				f: fields.FromPairs([]fields.Field{
-					{Name: "created_at", Kind: gocipe.String},
-					{Name: "pi", Kind: gocipe.Float64},
-					{Name: "stock", Kind: gocipe.Int64},
-				}),
+				f: fields.From(
+					fields.Field{Name: "created_at", Kind: types.String},
+					fields.Field{Name: "pi", Kind: types.Float64},
+					fields.Field{Name: "stock", Kind: types.Int64},
+				),
 			},
 			want: []Condition{
 				{Attribute: "created_at", Operator: LessOrEqualTo, Value: "2006-01-02T15:04:05Z07:00"},

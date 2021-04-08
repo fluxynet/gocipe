@@ -1,9 +1,10 @@
 package mongo
 
 import (
+	"go.mongodb.org/mongo-driver/bson"
+
 	"github.com/fluxynet/gocipe/repository"
 	"github.com/fluxynet/gocipe/values"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 // ConditionsToBsonD returns the filter for mongo.

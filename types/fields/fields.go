@@ -3,13 +3,13 @@ package fields
 import (
 	"strings"
 
-	"github.com/fluxynet/gocipe"
+	"github.com/fluxynet/gocipe/types"
 )
 
 // Field as part of a set
 type Field struct {
 	Name string
-	Kind gocipe.Type
+	Kind types.Type
 	prev *Field
 	next *Field
 }
@@ -67,7 +67,7 @@ func (f *Fields) Unset(name string) *Fields {
 }
 
 // Set a named Field kind
-func (f *Fields) Set(name string, kind gocipe.Type) *Fields {
+func (f *Fields) Set(name string, kind types.Type) *Fields {
 	var node = &Field{Name: name, Kind: kind}
 
 	if f.head == nil { // list is empty
@@ -99,16 +99,16 @@ func (f Fields) GetEmptyValues() map[string]interface{} {
 
 	for it.Next() {
 		var i = it.Field()
-		dst[i.Name] = gocipe.DefaultValue(i.Kind)
+		dst[i.Name] = types.Default(i.Kind)
 	}
 
 	return dst
 }
 
 // TypeOf returns typeof a field
-func (f Fields) TypeOf(name string) gocipe.Type {
+func (f Fields) TypeOf(name string) types.Type {
 	if f.head == nil {
-		return gocipe.Undefined
+		return types.Undefined
 	}
 
 	return f.items[name].Kind
@@ -130,12 +130,12 @@ func (f Fields) String() string {
 }
 
 // Iterator returns an iterator to loop though fields based on order
-func (f Fields) Iterator() Iterator {
-	return &iterator{head: f.head}
+func (f Fields) Iterator() FieldIterator {
+	return &fieldIterator{head: f.head}
 }
 
-// Iterator allows moving through a list
-type Iterator interface {
+// FieldIterator allows moving through a list
+type FieldIterator interface {
 	// Reset the iteration
 	Reset()
 
@@ -146,16 +146,16 @@ type Iterator interface {
 	Field() *Field
 }
 
-type iterator struct {
+type fieldIterator struct {
 	head    *Field
 	current *Field
 }
 
-func (i *iterator) Reset() {
+func (i *fieldIterator) Reset() {
 	i.current = nil
 }
 
-func (i *iterator) Next() bool {
+func (i *fieldIterator) Next() bool {
 	if i.head == nil {
 		return false
 	}
@@ -171,12 +171,12 @@ func (i *iterator) Next() bool {
 	return true
 }
 
-func (i *iterator) Field() *Field {
+func (i *fieldIterator) Field() *Field {
 	return i.current
 }
 
 // FromMap creates a field set from map
-func FromMap(m map[string]gocipe.Type) Fields {
+func FromMap(m map[string]types.Type) Fields {
 	var f Fields
 
 	for k, v := range m {
@@ -186,8 +186,8 @@ func FromMap(m map[string]gocipe.Type) Fields {
 	return f
 }
 
-// FromPairs sets Values from a slice of Value
-func FromPairs(p []Field) Fields {
+// From sets Fields from a slice of Field
+func From(p ...Field) Fields {
 	var f Fields
 	for i := range p {
 		f.Set(p[i].Name, p[i].Kind)

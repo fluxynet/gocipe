@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/types/fields"
+	"github.com/fluxynet/gocipe/types/fields/entity"
 	"github.com/fluxynet/gocipe/values"
 )
 
@@ -150,7 +151,7 @@ func ConditionsFromMap(m map[string][]string, f fields.Fields) ([]Condition, err
 			case "lte":
 				c.Operator = LessOrEqualTo
 			case "li":
-				if i.Kind != gocipe.String {
+				if i.Kind != types.String {
 					return nil, ErrInvalidConditionOperator
 				}
 				c.Operator = Like
@@ -160,17 +161,17 @@ func ConditionsFromMap(m map[string][]string, f fields.Fields) ([]Condition, err
 		}
 
 		switch i.Kind {
-		case gocipe.Bool:
+		case types.Bool:
 			if c.Operator != Equals && c.Operator != NotEquals {
 				return nil, ErrInvalidConditionOperator
 			}
-			c.Value, err = gocipe.BoolFromString(w)
-		case gocipe.String:
+			c.Value, err = types.BoolFromString(w)
+		case types.String:
 			c.Value, err = w, nil
-		case gocipe.Int64:
-			c.Value, err = gocipe.Int64FromString(w)
-		case gocipe.Float64:
-			c.Value, err = gocipe.Float64FromString(w)
+		case types.Int64:
+			c.Value, err = types.Int64FromString(w)
+		case types.Float64:
+			c.Value, err = types.Float64FromString(w)
 		}
 
 		if err != nil {
@@ -217,8 +218,10 @@ func OrderByFromString(s string, f fields.Fields) ([]OrderBy, error) {
 		return nil, nil
 	}
 
-	var p = strings.Split(s, ",")
-	var o = make([]OrderBy, len(p))
+	var (
+		p = strings.Split(s, ",")
+		o = make([]OrderBy, len(p))
+	)
 
 	for i := range p {
 		var (
@@ -269,28 +272,33 @@ type Persistable interface {
 	Values() values.Values
 }
 
-// Repositorium allows persistence of Entity
+// Named has a name
+type Named interface {
+	Name() string
+}
+
+// Repositorium allows persistence of Name
 type Repositorium interface {
-	// Get a single Entity by id
-	Get(ctx context.Context, entity string, f fields.Fields, id string) (*values.Values, error)
+	// Get a single Name by id
+	Get(ctx context.Context, entity entity.Entity, id string) (*values.Values, error)
 
-	// List multiple Entity with pagination rules and conditions
-	List(ctx context.Context, entity string, f fields.Fields, p Pagination, c ...Condition) ([]values.Values, error)
+	// List multiple Name with pagination rules and conditions
+	List(ctx context.Context, entity entity.Entity, p Pagination, c ...Condition) ([]values.Values, error)
 
-	// Delete a single Entity by id
-	Delete(ctx context.Context, entity, id string) error
+	// Delete a single Name by id
+	Delete(ctx context.Context, named Named, id string) error
 
-	// DeleteWhere delete multiple Entity based on conditions
-	DeleteWhere(ctx context.Context, entity string, c ...Condition) error
+	// DeleteWhere delete multiple Name based on conditions
+	DeleteWhere(ctx context.Context, named Named, c ...Condition) error
 
 	// Create a new Entity in persistent storage
-	Create(ctx context.Context, entity string, vals *values.Values) (string, error)
+	Create(ctx context.Context, named Named, vals *values.Values) (string, error)
 
-	// Update an existing Entity in persistent storage
-	Update(ctx context.Context, entity string, id string, vals *values.Values) error
+	// Update an existing Name in persistent storage
+	Update(ctx context.Context, named Named, id string, vals *values.Values) error
 
 	// UpdateValuesWhere Values in persistent storage
-	UpdateWhere(ctx context.Context, entity string, vals *values.Values, c ...Condition) error
+	UpdateWhere(ctx context.Context, named Named, vals *values.Values, c ...Condition) error
 
 	// Close connection to the repo
 	Close() error

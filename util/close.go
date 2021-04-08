@@ -1,4 +1,4 @@
-package gocipe
+package util
 
 import "io"
 

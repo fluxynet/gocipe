@@ -1,15 +1,9 @@
-package web
+package util
 
 import (
-	"errors"
 	"strconv"
 
-	"github.com/fluxynet/gocipe"
-)
-
-var (
-	// ErrInvalidRequestParameters some request parameters are not correct
-	ErrInvalidRequestParameters = errors.New("invalid request parameters")
+	"github.com/fluxynet/gocipe/types"
 )
 
 // GetSingleInteger from a map[string][]string (from url.query)
@@ -20,7 +14,7 @@ func GetSingleInteger(q map[string][]string, name string) (int, error) {
 	}
 
 	if len(o) != 1 {
-		return 0, gocipe.ErrInvalidValue
+		return 0, types.ErrInvalidValue
 	}
 
 	var v, err = strconv.Atoi(o[0])

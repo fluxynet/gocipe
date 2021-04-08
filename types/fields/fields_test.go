@@ -3,12 +3,12 @@ package fields
 import (
 	"testing"
 
-	"github.com/fluxynet/gocipe"
+	"github.com/fluxynet/gocipe/types"
 )
 
 type node struct {
 	name string
-	kind gocipe.Type
+	kind types.Type
 }
 
 func checkValuesPresent(t *testing.T, want []node, got Fields) {
@@ -39,7 +39,7 @@ func checkValuesPresent(t *testing.T, want []node, got Fields) {
 
 func TestFromMap(t *testing.T) {
 	type args struct {
-		m map[string]gocipe.Type
+		m map[string]types.Type
 	}
 
 	tests := []struct {
@@ -50,73 +50,73 @@ func TestFromMap(t *testing.T) {
 		{
 			name: "empty",
 			args: args{
-				m: map[string]gocipe.Type{},
+				m: map[string]types.Type{},
 			},
 			want: nil,
 		},
 		{
 			name: "1 kind",
 			args: args{
-				m: map[string]gocipe.Type{
-					"name": gocipe.String,
+				m: map[string]types.Type{
+					"name": types.String,
 				},
 			},
 			want: []node{
-				{name: "name", kind: gocipe.String},
+				{name: "name", kind: types.String},
 			},
 		},
 		{
 			name: "2 values",
 			args: args{
-				m: map[string]gocipe.Type{
-					"name":      gocipe.String,
-					"is_active": gocipe.Bool,
+				m: map[string]types.Type{
+					"name":      types.String,
+					"is_active": types.Bool,
 				},
 			},
 			want: []node{
-				{name: "name", kind: gocipe.String},
-				{name: "is_active", kind: gocipe.Bool},
+				{name: "name", kind: types.String},
+				{name: "is_active", kind: types.Bool},
 			},
 		},
 		{
 			name: "2 values swapped",
 			args: args{
-				m: map[string]gocipe.Type{
-					"is_active": gocipe.Bool,
-					"name":      gocipe.String,
+				m: map[string]types.Type{
+					"is_active": types.Bool,
+					"name":      types.String,
 				},
 			},
 			want: []node{
-				{name: "is_active", kind: gocipe.Bool},
-				{name: "name", kind: gocipe.String},
+				{name: "is_active", kind: types.Bool},
+				{name: "name", kind: types.String},
 			},
 		},
 		{
 			name: "one of each kind",
 			args: args{
-				m: map[string]gocipe.Type{
-					"aBool":    gocipe.Bool,
-					"aString":  gocipe.String,
-					"aInteger": gocipe.Int64,
-					"aFloat":   gocipe.Float64,
+				m: map[string]types.Type{
+					"aBool":    types.Bool,
+					"aString":  types.String,
+					"aInteger": types.Int64,
+					"aFloat":   types.Float64,
 				},
 			},
 			want: []node{
 				{
 					name: "aBool",
-					kind: gocipe.Bool,
+					kind: types.Bool,
 				},
 				{
 					name: "aString",
-					kind: gocipe.String,
+					kind: types.String,
 				},
 				{
 					name: "aInteger",
-					kind: gocipe.Int64,
+					kind: types.Int64,
 				},
 				{
 					name: "aFloat",
-					kind: gocipe.Float64,
+					kind: types.Float64,
 				},
 			},
 		},
@@ -142,33 +142,33 @@ func TestFields_String(t *testing.T) {
 		{
 			name: "1 kind",
 			nodes: []node{
-				{name: "name", kind: gocipe.String},
+				{name: "name", kind: types.String},
 			},
 			want: "name:string",
 		},
 		{
 			name: "2 values",
 			nodes: []node{
-				{name: "name", kind: gocipe.String},
-				{name: "is_active", kind: gocipe.Bool},
+				{name: "name", kind: types.String},
+				{name: "is_active", kind: types.Bool},
 			},
 			want: "name:string, is_active:bool",
 		},
 		{
 			name: "2 values swapped",
 			nodes: []node{
-				{name: "is_active", kind: gocipe.Bool},
-				{name: "name", kind: gocipe.String},
+				{name: "is_active", kind: types.Bool},
+				{name: "name", kind: types.String},
 			},
 			want: "is_active:bool, name:string",
 		},
 		{
 			name: "one of each kind",
 			nodes: []node{
-				{name: "aBool", kind: gocipe.Bool},
-				{name: "aString", kind: gocipe.String},
-				{name: "aInt64", kind: gocipe.Int64},
-				{name: "aFloat64", kind: gocipe.Float64},
+				{name: "aBool", kind: types.Bool},
+				{name: "aString", kind: types.String},
+				{name: "aInt64", kind: types.Int64},
+				{name: "aFloat64", kind: types.Float64},
 			},
 			want: "aBool:bool, aString:string, aInt64:int64, aFloat64:float64",
 		},

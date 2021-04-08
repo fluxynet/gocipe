@@ -2,11 +2,12 @@ package values
 
 import (
 	"bytes"
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
 	"io"
 	"reflect"
 	"testing"
+
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/types/fields"
 )
 
 type node struct {
@@ -243,7 +244,7 @@ func TestFromJSON(t *testing.T) {
 			name: "empty json",
 			args: args{
 				r: `{}`,
-				f: fields.FromMap(map[string]gocipe.Type{}),
+				f: fields.FromMap(map[string]types.Type{}),
 			},
 			want:    FromMap(map[string]interface{}{}),
 			wantErr: false,
@@ -252,7 +253,7 @@ func TestFromJSON(t *testing.T) {
 			name: "empty fields",
 			args: args{
 				r: `{"name": "foo"}`,
-				f: fields.FromMap(map[string]gocipe.Type{}),
+				f: fields.FromMap(map[string]types.Type{}),
 			},
 			want:    FromMap(map[string]interface{}{}),
 			wantErr: false,
@@ -261,7 +262,7 @@ func TestFromJSON(t *testing.T) {
 			name: "empty",
 			args: args{
 				r: `{}`,
-				f: fields.FromMap(map[string]gocipe.Type{}),
+				f: fields.FromMap(map[string]types.Type{}),
 			},
 			want:    FromMap(map[string]interface{}{}),
 			wantErr: false,
@@ -270,8 +271,8 @@ func TestFromJSON(t *testing.T) {
 			name: "invalid json",
 			args: args{
 				r: `{"name": "foo", }`,
-				f: fields.FromMap(map[string]gocipe.Type{
-					"name": gocipe.String,
+				f: fields.FromMap(map[string]types.Type{
+					"name": types.String,
 				}),
 			},
 			want:    nil,
@@ -281,8 +282,8 @@ func TestFromJSON(t *testing.T) {
 			name: "1 field",
 			args: args{
 				r: `{"name": "foo"}`,
-				f: fields.FromMap(map[string]gocipe.Type{
-					"name": gocipe.String,
+				f: fields.FromMap(map[string]types.Type{
+					"name": types.String,
 				}),
 			},
 			want: FromMap(map[string]interface{}{
@@ -294,9 +295,9 @@ func TestFromJSON(t *testing.T) {
 			name: "2 fields",
 			args: args{
 				r: `{"country": "MU", "island": true}`,
-				f: fields.FromMap(map[string]gocipe.Type{
-					"country": gocipe.String,
-					"island":  gocipe.Bool,
+				f: fields.FromMap(map[string]types.Type{
+					"country": types.String,
+					"island":  types.Bool,
 				}),
 			},
 			want: FromMap(map[string]interface{}{
@@ -316,11 +317,11 @@ func TestFromJSON(t *testing.T) {
     "aFloat": 3.141592653589793238
 }
 				`,
-				f: fields.FromMap(map[string]gocipe.Type{
-					"aBool":    gocipe.Bool,
-					"aInteger": gocipe.Int64,
-					"aString":  gocipe.String,
-					"aFloat":   gocipe.Float64,
+				f: fields.FromMap(map[string]types.Type{
+					"aBool":    types.Bool,
+					"aInteger": types.Int64,
+					"aString":  types.String,
+					"aFloat":   types.Float64,
 				}),
 			},
 			want: FromMap(map[string]interface{}{
@@ -361,33 +362,33 @@ func Test_iterator_Next(t *testing.T) {
 		{
 			name: "1 kind",
 			nodes: []node{
-				{key: "name", value: gocipe.String},
+				{key: "name", value: types.String},
 			},
 			want: `name:"string"`,
 		},
 		{
 			name: "2 values",
 			nodes: []node{
-				{key: "name", value: gocipe.String},
-				{key: "is_active", value: gocipe.Bool},
+				{key: "name", value: types.String},
+				{key: "is_active", value: types.Bool},
 			},
 			want: `name:"string", is_active:"bool"`,
 		},
 		{
 			name: "2 values swapped",
 			nodes: []node{
-				{key: "is_active", value: gocipe.Bool},
-				{key: "name", value: gocipe.String},
+				{key: "is_active", value: types.Bool},
+				{key: "name", value: types.String},
 			},
 			want: `is_active:"bool", name:"string"`,
 		},
 		{
 			name: "one of each kind",
 			nodes: []node{
-				{key: "aBool", value: gocipe.Bool},
-				{key: "aString", value: gocipe.String},
-				{key: "aInt64", value: gocipe.Int64},
-				{key: "aFloat64", value: gocipe.Float64},
+				{key: "aBool", value: types.Bool},
+				{key: "aString", value: types.String},
+				{key: "aInt64", value: types.Int64},
+				{key: "aFloat64", value: types.Float64},
 			},
 			want: `aBool:"bool", aString:"string", aInt64:"int64", aFloat64:"float64"`,
 		},

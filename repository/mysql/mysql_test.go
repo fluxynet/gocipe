@@ -5,11 +5,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fluxynet/gocipe"
-	"github.com/fluxynet/gocipe/fields"
 	"github.com/fluxynet/gocipe/repository"
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/types/fields"
+	"github.com/fluxynet/gocipe/types/fields/entity"
 	"github.com/fluxynet/gocipe/values"
 )
+
+type named struct {
+	name string
+}
+
+func (n named) Name() string {
+	return n.name
+}
+
+type ent struct {
+	name   string
+	fields fields.Fields
+}
+
+func (e ent) Name() string {
+	return e.name
+}
+
+func (e ent) Fields() fields.Fields {
+	return e.fields
+}
 
 func compareSlicesOfInterface(t *testing.T, got, want []interface{}) {
 	if len(got) != len(want) {
@@ -225,8 +247,8 @@ func TestConditionsToWhere(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	type args struct {
-		entity string
-		vals   *values.Values
+		named repository.Named
+		vals  *values.Values
 	}
 
 	tests := []struct {
@@ -237,8 +259,8 @@ func TestCreate(t *testing.T) {
 		{
 			name: "No values",
 			args: args{
-				entity: "foo",
-				vals:   &values.Values{},
+				named: named{name: "foo"},
+				vals:  &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -246,10 +268,10 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name: "No entity",
+			name: "No named",
 			args: args{
-				entity: "",
-				vals: values.FromPairs([]values.Value{
+				named: named{name: ""},
+				vals: values.FromSlice([]values.Value{
 					{Name: "name", Value: "John Doe"},
 				}),
 			},
@@ -259,10 +281,10 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name: "No values, no entity",
+			name: "No values, no named",
 			args: args{
-				entity: "",
-				vals:   &values.Values{},
+				named: named{name: ""},
+				vals:  &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -272,8 +294,8 @@ func TestCreate(t *testing.T) {
 		{
 			name: "1 value",
 			args: args{
-				entity: "foo",
-				vals: values.FromPairs([]values.Value{
+				named: named{name: "foo"},
+				vals: values.FromSlice([]values.Value{
 					{Name: "age", Value: 18},
 				}),
 			},
@@ -285,8 +307,8 @@ func TestCreate(t *testing.T) {
 		{
 			name: "2 values",
 			args: args{
-				entity: "bar",
-				vals: values.FromPairs([]values.Value{
+				named: named{name: "bar"},
+				vals: values.FromSlice([]values.Value{
 					{Name: "country", Value: "MU"},
 					{Name: "status", Value: true},
 				}),
@@ -299,8 +321,8 @@ func TestCreate(t *testing.T) {
 		{
 			name: "3 values",
 			args: args{
-				entity: "products",
-				vals: values.FromPairs([]values.Value{
+				named: named{name: "products"},
+				vals: values.FromSlice([]values.Value{
 					{Name: "name", Value: "Apple"},
 					{Name: "price", Value: 3.5},
 					{Name: "color", Value: "red"},
@@ -314,8 +336,8 @@ func TestCreate(t *testing.T) {
 		{
 			name: "3 values re-ordered",
 			args: args{
-				entity: "products",
-				vals: values.FromPairs([]values.Value{
+				named: named{name: "products"},
+				vals: values.FromSlice([]values.Value{
 					{Name: "name", Value: "Apple"},
 					{Name: "color", Value: "red"},
 					{Name: "price", Value: 3.5},
@@ -330,7 +352,7 @@ func TestCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Create(tt.args.entity, tt.args.vals)
+			got := Create(tt.args.named, tt.args.vals)
 
 			compareQueries(t, got, tt.want)
 		})
@@ -339,8 +361,8 @@ func TestCreate(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	type args struct {
-		entity string
-		id     string
+		named repository.Named
+		id    string
 	}
 
 	tests := []struct {
@@ -349,10 +371,10 @@ func TestDelete(t *testing.T) {
 		want Query
 	}{
 		{
-			name: "No entity",
+			name: "No named",
 			args: args{
-				entity: "",
-				id:     "00000000-0000-0000-0000-000000000001",
+				named: named{name: ""},
+				id:    "00000000-0000-0000-0000-000000000001",
 			},
 			want: Query{
 				SQL:  "",
@@ -362,8 +384,8 @@ func TestDelete(t *testing.T) {
 		{
 			name: "Empty id",
 			args: args{
-				entity: "",
-				id:     "",
+				named: named{name: ""},
+				id:    "",
 			},
 			want: Query{
 				SQL:  "",
@@ -371,10 +393,10 @@ func TestDelete(t *testing.T) {
 			},
 		},
 		{
-			name: "No entity and Empty id",
+			name: "No named and Empty id",
 			args: args{
-				entity: "",
-				id:     "",
+				named: named{name: ""},
+				id:    "",
 			},
 			want: Query{
 				SQL:  "",
@@ -384,8 +406,8 @@ func TestDelete(t *testing.T) {
 		{
 			name: "Non-empty id",
 			args: args{
-				entity: "products",
-				id:     "00000000-0000-0000-0000-00000000000f",
+				named: named{name: "products"},
+				id:    "00000000-0000-0000-0000-00000000000f",
 			},
 			want: Query{
 				SQL:  "DELETE FROM `products` WHERE `id` = ?",
@@ -396,7 +418,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Delete(tt.args.entity, tt.args.id); !reflect.DeepEqual(got, tt.want) {
+			if got := Delete(tt.args.named, tt.args.id); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Delete() = %v, want %v", got, tt.want)
 			}
 		})
@@ -407,8 +429,8 @@ func TestDeleteWhere(t *testing.T) {
 	var now = time.Now()
 
 	type args struct {
-		entity string
-		c      []repository.Condition
+		named repository.Named
+		c     []repository.Condition
 	}
 
 	tests := []struct {
@@ -417,10 +439,10 @@ func TestDeleteWhere(t *testing.T) {
 		want Query
 	}{
 		{
-			name: "No entity",
+			name: "No named",
 			args: args{
-				entity: "",
-				c:      nil,
+				named: named{name: ""},
+				c:     nil,
 			},
 			want: Query{
 				SQL:  "",
@@ -430,8 +452,8 @@ func TestDeleteWhere(t *testing.T) {
 		{
 			name: "No conditions",
 			args: args{
-				entity: "products",
-				c:      nil,
+				named: named{name: "products"},
+				c:     nil,
 			},
 			want: Query{
 				SQL:  "DELETE FROM `products`",
@@ -439,10 +461,10 @@ func TestDeleteWhere(t *testing.T) {
 			},
 		},
 		{
-			name: "No entity and no conditions",
+			name: "No named and no conditions",
 			args: args{
-				entity: "",
-				c:      nil,
+				named: named{name: ""},
+				c:     nil,
 			},
 			want: Query{
 				SQL:  "",
@@ -450,9 +472,9 @@ func TestDeleteWhere(t *testing.T) {
 			},
 		},
 		{
-			name: "Entity and 1 condition",
+			name: "Name and 1 condition",
 			args: args{
-				entity: "persons",
+				named: named{name: "persons"},
 				c: []repository.Condition{
 					{
 						Attribute: "age",
@@ -468,9 +490,9 @@ func TestDeleteWhere(t *testing.T) {
 			},
 		},
 		{
-			name: "Entity and 2 conditions",
+			name: "Name and 2 conditions",
 			args: args{
-				entity: "products",
+				named: named{name: "products"},
 				c: []repository.Condition{
 					{
 						Attribute: "expiry_date",
@@ -495,7 +517,7 @@ func TestDeleteWhere(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DeleteWhere(tt.args.entity, tt.args.c...)
+			got := DeleteWhere(tt.args.named, tt.args.c...)
 			compareQueries(t, got, tt.want)
 		})
 	}
@@ -503,8 +525,7 @@ func TestDeleteWhere(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	type args struct {
-		f      fields.Fields
-		entity string
+		entity entity.Entity
 		id     string
 	}
 
@@ -514,14 +535,16 @@ func TestGet(t *testing.T) {
 		want Query
 	}{
 		{
-			name: "No entity",
+			name: "No name",
 			args: args{
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
-				entity: "",
-				id:     "00000000-0000-0000-0000-000000000001",
+				entity: ent{
+					name: "",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
+				id: "00000000-0000-0000-0000-000000000001",
 			},
 			want: Query{
 				SQL:  "",
@@ -531,12 +554,14 @@ func TestGet(t *testing.T) {
 		{
 			name: "No id",
 			args: args{
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
-				entity: "products",
-				id:     "",
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
+				id: "",
 			},
 			want: Query{
 				SQL:  "",
@@ -544,14 +569,16 @@ func TestGet(t *testing.T) {
 			},
 		},
 		{
-			name: "No entity and no id",
+			name: "No named and no id",
 			args: args{
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
-				entity: "",
-				id:     "",
+				entity: ent{
+					name: "",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
+				id: "",
 			},
 			want: Query{
 				SQL:  "",
@@ -559,14 +586,16 @@ func TestGet(t *testing.T) {
 			},
 		},
 		{
-			name: "Entity and id",
+			name: "Name and id",
 			args: args{
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
-				entity: "products",
-				id:     "00000000-0000-0000-0000-000000000001",
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
+				id: "00000000-0000-0000-0000-000000000001",
 			},
 			want: Query{
 				SQL:  "SELECT `name`,`price` FROM `products` WHERE `id` = ?",
@@ -577,7 +606,7 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Get(tt.args.entity, tt.args.f, tt.args.id)
+			got := Get(tt.args.entity, tt.args.id)
 			compareQueries(t, got, tt.want)
 		})
 	}
@@ -585,8 +614,7 @@ func TestGet(t *testing.T) {
 
 func TestList(t *testing.T) {
 	type args struct {
-		entity string
-		f      fields.Fields
+		entity entity.Entity
 		p      repository.Pagination
 		c      []repository.Condition
 	}
@@ -597,13 +625,14 @@ func TestList(t *testing.T) {
 		want Query
 	}{
 		{
-			name: "no entity",
+			name: "no named",
 			args: args{
-				entity: "",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{Attribute: "age", Sort: repository.Ascending},
 				}, Limit: 0},
@@ -623,11 +652,13 @@ func TestList(t *testing.T) {
 		{
 			name: "no condition, no pagination",
 			args: args{
-				entity: "products",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
 			},
 			want: Query{
 				SQL:  "SELECT `name`,`price` FROM `products`",
@@ -637,11 +668,13 @@ func TestList(t *testing.T) {
 		{
 			name: "no condition, no order, no offset, limit 10",
 			args: args{
-				entity: "products",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "color", Kind: gocipe.String},
-					{Name: "stock", Kind: gocipe.Int64},
-				}),
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "color", Kind: types.String},
+						fields.Field{Name: "stock", Kind: types.Int64},
+					),
+				},
 				p: repository.Pagination{Limit: 10},
 				c: []repository.Condition{},
 			},
@@ -653,11 +686,13 @@ func TestList(t *testing.T) {
 		{
 			name: "no condition, no order, offset 5",
 			args: args{
-				entity: "products",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Limit: 10, Offset: 5},
 				c: []repository.Condition{},
 			},
@@ -669,11 +704,13 @@ func TestList(t *testing.T) {
 		{
 			name: "no condition, order desc",
 			args: args{
-				entity: "products",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "color", Kind: gocipe.String},
-					{Name: "weight", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "color", Kind: types.String},
+						fields.Field{Name: "weight", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{
 						Attribute: "age",
@@ -689,11 +726,13 @@ func TestList(t *testing.T) {
 		{
 			name: "no condition, order asc",
 			args: args{
-				entity: "products",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{
 						Attribute: "age",
@@ -709,11 +748,13 @@ func TestList(t *testing.T) {
 		{
 			name: "no pagination",
 			args: args{
-				entity: "products",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "products",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
 				c: []repository.Condition{
 					{
 						Attribute: "price",
@@ -730,11 +771,13 @@ func TestList(t *testing.T) {
 		{
 			name: "condition and pagination",
 			args: args{
-				entity: "students",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "price", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "students",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "price", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Limit: 100, Offset: 500},
 				c: []repository.Condition{
 					{
@@ -752,11 +795,13 @@ func TestList(t *testing.T) {
 		{
 			name: "condition, pagination and order; no limit",
 			args: args{
-				entity: "customers",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "age", Kind: gocipe.Int64},
-				}),
+				entity: ent{
+					name: "customers",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "age", Kind: types.Int64},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{
 						Attribute: "credits",
@@ -783,11 +828,13 @@ func TestList(t *testing.T) {
 		{
 			name: "condition, pagination, order and limit",
 			args: args{
-				entity: "customers",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "credits", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "customers",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "credits", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{
 						Attribute: "credits",
@@ -814,11 +861,13 @@ func TestList(t *testing.T) {
 		{
 			name: "condition, pagination, order, limit and offset",
 			args: args{
-				entity: "customers",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "credits", Kind: gocipe.Float64},
-				}),
+				entity: ent{
+					name: "customers",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "credits", Kind: types.Float64},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{
 						Attribute: "credits",
@@ -845,11 +894,13 @@ func TestList(t *testing.T) {
 		{
 			name: "2 conditions, pagination, order and limit",
 			args: args{
-				entity: "customers",
-				f: fields.FromPairs([]fields.Field{
-					{Name: "name", Kind: gocipe.String},
-					{Name: "country", Kind: gocipe.String},
-				}),
+				entity: ent{
+					name: "customers",
+					fields: fields.From(
+						fields.Field{Name: "name", Kind: types.String},
+						fields.Field{Name: "country", Kind: types.String},
+					),
+				},
 				p: repository.Pagination{Order: []repository.OrderBy{
 					{
 						Attribute: "credits",
@@ -881,7 +932,7 @@ func TestList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := List(tt.args.entity, tt.args.f, tt.args.p, tt.args.c...)
+			got := List(tt.args.entity, tt.args.p, tt.args.c...)
 			compareQueries(t, got, tt.want)
 		})
 	}
@@ -1024,9 +1075,9 @@ func TestTypeToString(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	type args struct {
-		entity string
-		id     string
-		vals   *values.Values
+		named repository.Named
+		id    string
+		vals  *values.Values
 	}
 	tests := []struct {
 		name string
@@ -1034,10 +1085,10 @@ func TestUpdate(t *testing.T) {
 		want Query
 	}{
 		{
-			name: "no entity",
+			name: "no name",
 			args: args{
-				entity: "",
-				id:     "00000000-0000-0000-0000-000000000001",
+				named: named{name: ""},
+				id:    "00000000-0000-0000-0000-000000000001",
 				vals: values.FromMap(map[string]interface{}{
 					"name": "foobar",
 				}),
@@ -1050,9 +1101,9 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "no id",
 			args: args{
-				entity: "animals",
-				id:     "",
-				vals:   &values.Values{},
+				named: named{name: "animals"},
+				id:    "",
+				vals:  &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -1060,11 +1111,11 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "no entity, no id",
+			name: "no named, no id",
 			args: args{
-				entity: "",
-				id:     "",
-				vals:   &values.Values{},
+				named: named{name: ""},
+				id:    "",
+				vals:  &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -1072,11 +1123,11 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "entity, id, no values",
+			name: "named, id, no values",
 			args: args{
-				entity: "farm",
-				id:     "00000000-0000-0000-0000-000000000001",
-				vals:   &values.Values{},
+				named: named{name: "farm"},
+				id:    "00000000-0000-0000-0000-000000000001",
+				vals:  &values.Values{},
 			},
 			want: Query{
 				SQL:  "",
@@ -1084,10 +1135,10 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "entity, id, values 1",
+			name: "named, id, values 1",
 			args: args{
-				entity: "farm",
-				id:     "00000000-0000-0000-0000-000000000001",
+				named: named{name: "farm"},
+				id:    "00000000-0000-0000-0000-000000000001",
 				vals: values.FromMap(map[string]interface{}{
 					"name": "Animal",
 				}),
@@ -1100,10 +1151,10 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "entity, id, values 2",
+			name: "named, id, values 2",
 			args: args{
-				entity: "animals",
-				id:     "00000000-0000-0000-0000-000000000002",
+				named: named{name: "animals"},
+				id:    "00000000-0000-0000-0000-000000000002",
 				vals: values.FromMap(map[string]interface{}{
 					"role": "president",
 					"legs": 2,
@@ -1119,7 +1170,7 @@ func TestUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Update(tt.args.entity, tt.args.id, tt.args.vals)
+			got := Update(tt.args.named, tt.args.id, tt.args.vals)
 			compareQueries(t, got, tt.want)
 		})
 	}
@@ -1127,9 +1178,9 @@ func TestUpdate(t *testing.T) {
 
 func TestUpdateWhere(t *testing.T) {
 	type args struct {
-		entity string
-		vals   *values.Values
-		c      []repository.Condition
+		named repository.Named
+		vals  *values.Values
+		c     []repository.Condition
 	}
 	tests := []struct {
 		name string
@@ -1137,9 +1188,9 @@ func TestUpdateWhere(t *testing.T) {
 		want Query
 	}{
 		{
-			name: "no entity",
+			name: "no name",
 			args: args{
-				entity: "",
+				named: named{name: ""},
 				vals: values.FromMap(map[string]interface{}{
 					"active": false,
 				}),
@@ -1159,8 +1210,8 @@ func TestUpdateWhere(t *testing.T) {
 		{
 			name: "no values",
 			args: args{
-				entity: "customers",
-				vals:   &values.Values{},
+				named: named{name: "customers"},
+				vals:  &values.Values{},
 				c: []repository.Condition{
 					{
 						Attribute: "credit",
@@ -1175,10 +1226,10 @@ func TestUpdateWhere(t *testing.T) {
 			},
 		},
 		{
-			name: "no entity, no values",
+			name: "no named, no values",
 			args: args{
-				entity: "",
-				vals:   &values.Values{},
+				named: named{name: ""},
+				vals:  &values.Values{},
 				c: []repository.Condition{
 					{
 						Attribute: "credit",
@@ -1195,7 +1246,7 @@ func TestUpdateWhere(t *testing.T) {
 		{
 			name: "no conditions",
 			args: args{
-				entity: "customers",
+				named: named{name: "customers"},
 				vals: values.FromMap(map[string]interface{}{
 					"active": false,
 				}),
@@ -1207,11 +1258,11 @@ func TestUpdateWhere(t *testing.T) {
 			},
 		},
 		{
-			name: "no entity, no values, no conditions",
+			name: "no named, no values, no conditions",
 			args: args{
-				entity: "",
-				vals:   &values.Values{},
-				c:      nil,
+				named: named{name: ""},
+				vals:  &values.Values{},
+				c:     nil,
 			},
 			want: Query{
 				SQL:  "",
@@ -1221,7 +1272,7 @@ func TestUpdateWhere(t *testing.T) {
 		{
 			name: "1 condition",
 			args: args{
-				entity: "customers",
+				named: named{name: "customers"},
 				vals: values.FromMap(map[string]interface{}{
 					"active": false,
 				}),
@@ -1241,7 +1292,7 @@ func TestUpdateWhere(t *testing.T) {
 		{
 			name: "3 conditions",
 			args: args{
-				entity: "customers",
+				named: named{name: "customers"},
 				vals: values.FromMap(map[string]interface{}{
 					"active": true,
 				}),
@@ -1266,7 +1317,7 @@ func TestUpdateWhere(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := UpdateWhere(tt.args.entity, tt.args.vals, tt.args.c...)
+			got := UpdateWhere(tt.args.named, tt.args.vals, tt.args.c...)
 			compareQueries(t, got, tt.want)
 		})
 	}
@@ -1293,7 +1344,7 @@ func TestValuesToSet(t *testing.T) {
 		{
 			name: "1 value",
 			args: args{
-				vals: values.FromPairs([]values.Value{
+				vals: values.FromSlice([]values.Value{
 					{Name: "name", Value: "foo"},
 				}),
 			},
@@ -1303,7 +1354,7 @@ func TestValuesToSet(t *testing.T) {
 		{
 			name: "2 values",
 			args: args{
-				vals: values.FromPairs([]values.Value{
+				vals: values.FromSlice([]values.Value{
 					{Name: "name", Value: "foo"},
 					{Name: "age", Value: 18},
 				}),
@@ -1314,7 +1365,7 @@ func TestValuesToSet(t *testing.T) {
 		{
 			name: "3 values",
 			args: args{
-				vals: values.FromPairs([]values.Value{
+				vals: values.FromSlice([]values.Value{
 					{Name: "name", Value: "foo"},
 					{Name: "age", Value: 18},
 					{Name: "active", Value: true},
@@ -1326,7 +1377,7 @@ func TestValuesToSet(t *testing.T) {
 		{
 			name: "3 values reordered",
 			args: args{
-				vals: values.FromPairs([]values.Value{
+				vals: values.FromSlice([]values.Value{
 					{Name: "active", Value: true},
 					{Name: "name", Value: "foo"},
 					{Name: "age", Value: 18},
