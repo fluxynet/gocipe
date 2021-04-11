@@ -18,16 +18,16 @@ const (
 	ActionDelete = ActionSet(4)
 
 	// ActionCreate Endpoint to CREATE is enabled
-	ActionCreate = ActionSet(6)
+	ActionCreate = ActionSet(8)
 
 	// ActionReplace Endpoint to REPLACE is enabled
-	ActionReplace = ActionSet(8)
+	ActionReplace = ActionSet(16)
 
 	// ActionUpdate Endpoint to UPDATE is enabled
-	ActionUpdate = ActionSet(10)
+	ActionUpdate = ActionSet(32)
 
 	// ActionAll all endpoints enabled
-	ActionAll = ActionSet(0)
+	ActionAll = ActionSet(33)
 )
 
 // Has checks if an action set is contained with a value

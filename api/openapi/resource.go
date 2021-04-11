@@ -48,7 +48,7 @@ func (r Resource) Path() string {
 	if r.path == "" && r.name != "" {
 		return "/" + r.name
 	}
-	return r.path
+	return "/" + r.path
 }
 
 func (r *Resource) SetActions(actions api.ActionSet) *Resource {

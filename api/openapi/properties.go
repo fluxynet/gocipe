@@ -6,19 +6,19 @@ import (
 
 // Property is a field with openapi metadata
 type Property struct {
-	fields.Field `json:"-"`
-	prev         *Property
-	next         *Property
-	Description  string
-	Example      interface{}
-	Enum         []string
-	Maximum      int
-	Minimum      int
-	MaxLength    int
-	MinLength    int
-	Required     bool
-	Items        Properties
-	Ref          string
+	fields.Field
+	prev        *Property
+	next        *Property
+	Description string
+	Example     interface{}
+	Enum        []interface{}
+	Maximum     int
+	Minimum     int
+	MaxLength   int
+	MinLength   int
+	Required    bool
+	Items       Properties
+	Ref         string
 }
 
 // Properties is a collection of properties

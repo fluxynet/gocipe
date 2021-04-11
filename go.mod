@@ -3,6 +3,7 @@ module github.com/fluxynet/gocipe
 go 1.15
 
 require (
+	github.com/getkin/kin-openapi v0.53.0
 	github.com/go-chi/chi/v5 v5.0.0
 	github.com/google/uuid v1.2.0
 	github.com/spf13/cobra v1.1.1

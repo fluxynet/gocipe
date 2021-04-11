@@ -215,7 +215,6 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 		vals   *values.Values
 		err    error
 		id     string
-		b      []byte
 		status = http.StatusOK
 		ctx    = r.Context()
 	)
@@ -229,8 +228,6 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err == nil {
 		vals.Set("id", id)
-		var data = vals.ToMap()
-		b, err = json.Marshal(data)
 	}
 
 	if err != nil {
@@ -239,10 +236,7 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-
-	if status == http.StatusOK {
-		_, err = w.Write(b)
-	}
+	_, _ = w.Write(nil)
 }
 
 // Replace an entity by another instance of itself; ids cannot be updated.
@@ -251,7 +245,6 @@ func (s *Server) Replace(w http.ResponseWriter, r *http.Request) {
 		vals   *values.Values
 		err    error
 		id     string
-		b      []byte
 		status = http.StatusOK
 		ctx    = r.Context()
 	)
@@ -278,10 +271,6 @@ func (s *Server) Replace(w http.ResponseWriter, r *http.Request) {
 
 	if err == repository.ErrNotFound {
 		status = http.StatusNotFound
-	} else if err == nil {
-		vals.Set("id", id)
-		var data = vals.ToMap()
-		b, err = json.Marshal(data)
 	}
 
 	if err != nil {
@@ -290,10 +279,7 @@ func (s *Server) Replace(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-
-	if status == http.StatusOK {
-		_, err = w.Write(b)
-	}
+	_, _ = w.Write(nil)
 }
 
 // Update is partial update of an entity, typically Patch; ids cannot be updated
@@ -302,7 +288,6 @@ func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
 		vals   *values.Values
 		err    error
 		id     string
-		b      []byte
 		status = http.StatusOK
 		ctx    = r.Context()
 	)
@@ -327,12 +312,6 @@ func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
 		err = s.Repo.Update(ctx, s.Entity, id, vals)
 	}
 
-	if err == nil {
-		vals.Set("id", id)
-		var data = vals.ToMap()
-		b, err = json.Marshal(data)
-	}
-
 	if err == repository.ErrNotFound {
 		status = http.StatusNotFound
 	} else if err != nil {
@@ -341,8 +320,5 @@ func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-
-	if status == http.StatusOK {
-		_, err = w.Write(b)
-	}
+	_, err = w.Write(nil)
 }

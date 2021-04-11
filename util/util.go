@@ -25,3 +25,8 @@ func GetSingleInteger(q map[string][]string, name string) (int, error) {
 
 	return 0, err
 }
+
+// Str returns the pointer of a string
+func Str(s string) *string {
+	return &s
+}

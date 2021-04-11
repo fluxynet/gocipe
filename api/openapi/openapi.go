@@ -1,111 +1,18 @@
 package openapi
 
 import (
-	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/fluxynet/gocipe/api"
+	"github.com/fluxynet/gocipe/types"
+	"github.com/fluxynet/gocipe/util"
+	"github.com/getkin/kin-openapi/openapi3"
 )
-
-const (
-	paramID     = "#/parameters/id"
-	paramLimit  = "#/parameters/limit"
-	paramOffset = "#/parameters/offset"
-	paramSort   = "#/parameters/sort"
-)
-
-var (
-	statusOK           = strconv.Itoa(http.StatusOK)
-	statusCreated      = strconv.Itoa(http.StatusCreated)
-	statusBadRequest   = strconv.Itoa(http.StatusBadRequest)
-	statusUnauthorized = strconv.Itoa(http.StatusUnauthorized)
-	statusForbidden    = strconv.Itoa(http.StatusForbidden)
-	statusNotFound     = strconv.Itoa(http.StatusNotFound)
-)
-
-var (
-	responseBadRequest = Response{
-		Description: "Bad Request. Request body is incorrect or incomplete",
-	}
-
-	responseUnauthorized = Response{
-		Description: "Unauthorized. Authentication required",
-	}
-
-	responseForbidden = Response{
-		Description: "Forbidden. This action is not allowed for current user",
-	}
-
-	responseNotFound = Response{
-		Description: "Not found",
-	}
-)
-
-type DocumentInformation struct {
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
-	Version     string `json:"version,omitempty"`
-}
-
-// Definitions name -> definition map
-type Definitions map[string]Definition
-
-// PropMeta is a key => value list of metadata for a property
-type PropMeta map[string]interface{}
-
-// Definition of a resource
-type Definition struct {
-	Description string              `json:"description,omitempty"`
-	Properties  map[string]PropMeta `json:"properties,omitempty"`
-}
-
-type Paths map[string]Path
-
-type Path map[string]PathDetails
-
-type PathDetails struct {
-	Description string              `json:"description,omitempty"`
-	Parameters  []Parameter         `json:"parameters,omitempty"`
-	Responses   map[string]Response `json:"responses,omitempty"`
-}
-
-type Parameter struct {
-	Ref         string              `json:"$ref,omitempty"`
-	Name        string              `json:"name,omitempty"`
-	Description string              `json:"description,omitempty"`
-	Type        string              `json:"type,omitempty"`
-	In          string              `json:"in,omitempty"`
-	Required    bool                `json:"required,omitempty"`
-	Schema      map[string]PropMeta `json:"schema,omitempty"`
-}
-
-type Response struct {
-	Description string `json:"description,omitempty"`
-	Schema      Schema `json:"schema,omitempty"`
-}
-
-type Schema struct {
-	Type  string            `json:"type,omitempty"`
-	Items map[string]string `json:"items,omitempty"`
-	Ref   string            `json:"$ref,omitempty"`
-}
-
-type Document struct {
-	Swagger     string              `json:"swagger,omitempty"`
-	Info        DocumentInformation `json:"info,omitempty"`
-	Host        string              `json:"host,omitempty"`
-	BasePath    string              `json:"base_path,omitempty"`
-	Consumes    []string            `json:"consumes,omitempty"`
-	Produces    []string            `json:"produces,omitempty"`
-	Definitions Definitions         `json:"definitions,omitempty"`
-	Paths       Paths               `json:"paths,omitempty"`
-}
 
 // HandlerFunc returns an http.HandlerFunc for the openApi json representation
 // it is not live, resources added afterwards are not added
-func (d Document) HandlerFunc() http.HandlerFunc {
-	var b, err = json.Marshal(d)
+func (s *Swagger) HandlerFunc() http.HandlerFunc {
+	var b, err = s.MarshalJSON()
 	if err != nil {
 		panic(err)
 	}
@@ -117,252 +24,300 @@ func (d Document) HandlerFunc() http.HandlerFunc {
 	}
 }
 
-func (d *Document) AddResources(res ...Resource) *Document {
+func (s *Swagger) AddResources(res ...Resource) *Swagger {
 	for i := range res {
-		d.AddResource(res[i])
+		s.AddResource(res[i])
 	}
 
-	return d
+	return s
 }
 
-func (d *Document) AddResource(res Resource) *Document {
+func (s *Swagger) AddResource(res Resource) *Swagger {
 	var (
-		name    = res.Name()
-		ref     = "#/definitions/" + name
-		nameid  = name + "/{id}"
-		actions = res.Actions()
+		name     = res.Name()
+		ref      = "#/components/schemas/" + name
+		path     = res.Path()
+		pathID   = path + "/{id}"
+		actions  = res.Actions()
+		paramsID = openapi3.Parameters{
+			&openapi3.ParameterRef{Ref: paramID},
+		}
 	)
 
-	if d.Definitions == nil {
-		d.Definitions = make(map[string]Definition)
+	// no actions, skip
+	if actions&api.ActionAll == 0 {
+		return s
 	}
 
-	d.Definitions[name] = Definition{
-		Description: res.Description(),
-		Properties:  propsAsMap(res.props, false),
+	if s.Components.Schemas == nil {
+		s.Components.Schemas = make(openapi3.Schemas)
 	}
 
-	if d.Paths == nil {
-		d.Paths = make(map[string]Path)
+	s.Components.Schemas[name] = &openapi3.SchemaRef{
+		Value: &openapi3.Schema{
+			Type:                 "object",
+			Description:          res.Description(),
+			Enum:                 nil,
+			Required:             requiredProps(res.Properties()),
+			Properties:           propsToSchemas(res.Properties()),
+			MinProps:             0,
+			MaxProps:             nil,
+			AdditionalProperties: nil,
+			Discriminator:        nil,
+		},
+	}
+
+	if s.Paths == nil {
+		s.Paths = make(map[string]*openapi3.PathItem)
 	}
 
 	if actions.Has(api.ActionList | api.ActionCreate) {
-		d.Paths[name] = make(map[string]PathDetails)
+		s.Paths[path] = new(openapi3.PathItem)
 	}
 
 	if actions.Has(api.ActionRead | api.ActionReplace | api.ActionUpdate | api.ActionDelete) {
-		d.Paths[nameid] = make(map[string]PathDetails)
+		s.Paths[pathID] = new(openapi3.PathItem)
 	}
 
 	if actions.Has(api.ActionList) {
-		d.Paths[name][http.MethodGet] = PathDetails{
+		s.Paths[path].Get = &openapi3.Operation{
 			Description: "Get a list of " + name + " items",
 			Parameters:  paramsList(res.props),
-			Responses: map[string]Response{
-				statusOK: {
-					Description: "OK",
-					Schema: Schema{
-						Type: "array",
-						Items: map[string]string{
-							"$ref": "#/definitions/" + name,
+			Responses: responsesWithErrors(openapi3.Responses{
+				statusOK: &openapi3.ResponseRef{
+					Value: &openapi3.Response{
+						Description: util.Str("OK - List of items"),
+						Content: map[string]*openapi3.MediaType{
+							contentTypeJSON: {
+								Schema: &openapi3.SchemaRef{
+									Ref: ref,
+								},
+							},
 						},
 					},
 				},
-				statusUnauthorized: responseUnauthorized,
-				statusForbidden:    responseForbidden,
-				statusNotFound:     responseNotFound,
-			},
+			}, actions),
 		}
 	}
 
 	if actions.Has(api.ActionRead) {
-		d.Paths[nameid][http.MethodGet] = PathDetails{
+		s.Paths[pathID].Get = &openapi3.Operation{
 			Description: "Get a single " + name + " by id",
-			Parameters: []Parameter{{
-				Required: true,
-				In:       "query",
-				Ref:      paramID,
-			}},
-			Responses: map[string]Response{
-				statusOK: {
-					Description: "",
-					Schema: Schema{
-						Ref: ref,
-					},
+			Parameters:  paramsID,
+			Responses: responsesWithErrors(openapi3.Responses{
+				statusOK: &openapi3.ResponseRef{
+					Ref: ref,
 				},
-				statusUnauthorized: responseUnauthorized,
-				statusForbidden:    responseForbidden,
-				statusNotFound:     responseNotFound,
-			},
+			}, actions),
 		}
 	}
 
 	if actions.Has(api.ActionCreate) {
-		d.Paths[name][http.MethodPost] = PathDetails{
+		s.Paths[path].Post = &openapi3.Operation{
 			Description: "Create a new " + name,
-			Parameters: []Parameter{
-				{
-					Required: true,
-					In:       "body",
-					Ref:      ref,
-				},
-			},
-			Responses: map[string]Response{
-				statusCreated: {
-					Description: "Created",
-					Schema: Schema{
-						Ref: ref,
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
+					Content: map[string]*openapi3.MediaType{
+						contentTypeJSON: {
+							Schema: &openapi3.SchemaRef{Ref: ref},
+						},
 					},
 				},
-				statusBadRequest:   responseBadRequest,
-				statusUnauthorized: responseUnauthorized,
-				statusForbidden:    responseForbidden,
-				statusNotFound:     responseNotFound,
 			},
+			Responses: responsesWithErrors(openapi3.Responses{
+				statusOK: &openapi3.ResponseRef{Ref: ref},
+			}, actions),
 		}
 	}
 
 	if actions.Has(api.ActionReplace) {
-		d.Paths[nameid][http.MethodPut] = PathDetails{
+		s.Paths[pathID].Put = &openapi3.Operation{
 			Description: "Replace an existing " + name,
-			Parameters: []Parameter{
-				{
-					Required: true,
-					In:       "body",
-					Ref:      ref,
+			Parameters:  paramsID,
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
+					Content: map[string]*openapi3.MediaType{
+						contentTypeJSON: {
+							Schema: &openapi3.SchemaRef{Ref: ref},
+						},
+					},
 				},
 			},
-			Responses: map[string]Response{
-				statusOK: {
-					Description: "Updated",
-				},
-				statusBadRequest:   responseBadRequest,
-				statusUnauthorized: responseUnauthorized,
-				statusForbidden:    responseForbidden,
-				statusNotFound:     responseNotFound,
-			},
+			Responses: responsesWithErrors(openapi3.Responses{
+				statusOK: &openapi3.ResponseRef{Ref: ref},
+			}, actions),
 		}
 	}
 
 	if actions.Has(api.ActionUpdate) {
-		d.Paths[nameid][http.MethodPatch] = PathDetails{
+		s.Paths[pathID].Patch = &openapi3.Operation{
 			Description: "Update an existing " + name,
-			Parameters: []Parameter{
-				{
-					Name:        "Partial " + name,
+			Parameters:  paramsID,
+			RequestBody: &openapi3.RequestBodyRef{
+				Value: &openapi3.RequestBody{
 					Description: "Fields and values that need to be updated only",
-					Required:    true,
-					In:          "body",
-					Schema:      propsAsMap(res.props, true),
+					Content: map[string]*openapi3.MediaType{
+						contentTypeJSON: {
+							Schema: &openapi3.SchemaRef{
+								Value: &openapi3.Schema{
+									Description: "Partial or complete definition of " + name,
+									Properties:  propsToSchemas(res.props),
+								},
+							},
+						},
+					},
 				},
 			},
-			Responses: map[string]Response{
-				statusOK: {
-					Description: "Updated",
+			Responses: responsesWithErrors(openapi3.Responses{
+				statusOK: &openapi3.ResponseRef{
+					Value: &openapi3.Response{
+						Description: util.Str("Updated successfully"),
+					},
 				},
-				statusBadRequest:   responseBadRequest,
-				statusUnauthorized: responseUnauthorized,
-				statusForbidden:    responseForbidden,
-				statusNotFound:     responseNotFound,
-			},
+			}, actions),
 		}
 	}
 
 	if actions.Has(api.ActionDelete) {
-		d.Paths[nameid][http.MethodDelete] = PathDetails{
+		s.Paths[pathID].Delete = &openapi3.Operation{
 			Description: "Delete an existing " + name + " by id",
-			Parameters: []Parameter{{
-				Required: true,
-				In:       "query",
-				Ref:      paramID,
-			}},
-			Responses: map[string]Response{
-				statusOK: {
-					Description: "Deleted",
+			Parameters:  paramsID,
+			Responses: responsesWithErrors(openapi3.Responses{
+				statusOK: &openapi3.ResponseRef{
+					Value: &openapi3.Response{
+						Description: util.Str("Deleted successfully"),
+					},
 				},
-				statusUnauthorized: responseUnauthorized,
-				statusForbidden:    responseForbidden,
-				statusNotFound:     responseNotFound,
-			},
+			}, actions),
 		}
 	}
 
-	return d
+	return s
 }
 
-func paramsList(props Properties) []Parameter {
-	var p = []Parameter{
+func paramsList(props Properties) []*openapi3.ParameterRef {
+	var p = []*openapi3.ParameterRef{
 		{Ref: paramLimit},
 		{Ref: paramOffset},
 		{Ref: paramSort},
 	}
 
 	for i := range props {
-		p = append(p, Parameter{
-			Name:        props[i].Name,
-			Description: props[i].Description,
-			Type:        string(props[i].Kind),
-			In:          "query",
+		p = append(p, &openapi3.ParameterRef{
+			Value: &openapi3.Parameter{
+				ExtensionProps: openapi3.ExtensionProps{},
+				Name:           props[i].Name,
+				Description:    props[i].Description,
+				In:             "query",
+				Schema: &openapi3.SchemaRef{
+					Value: propToSchema(props[i]),
+				},
+			},
 		})
 	}
 
 	return p
 }
 
-func propsAsMap(props Properties, allowPartial bool) map[string]PropMeta {
-	var m = make(map[string]PropMeta, len(props))
+func propsToSchemas(props Properties) openapi3.Schemas {
+	var m = make(openapi3.Schemas, len(props))
 
 	for i := range props {
-		m[props[i].Name] = propMeta(props[i], allowPartial)
+
+		if props[i].Ref == "" {
+			m[props[i].Name] = &openapi3.SchemaRef{
+				Value: propToSchema(props[i]),
+			}
+		} else {
+			m[props[i].Name] = &openapi3.SchemaRef{
+				Ref: props[i].Ref,
+			}
+		}
+
 	}
 
 	return m
 }
 
-func propMeta(prop Property, allowPartial bool) PropMeta {
-	var p = make(PropMeta)
+func requiredProps(props Properties) []string {
+	var r []string
 
-	if prop.Description != "" {
-		p["description"] = prop.Description
+	for i := range props {
+		if props[i].Required {
+			r = append(r, props[i].Name)
+		}
 	}
 
-	if prop.Example != nil {
-		p["example"] = prop.Example
+	return r
+}
+
+func propToSchema(prop Property) *openapi3.Schema {
+	var p openapi3.Schema
+
+	switch prop.Kind {
+	case types.Bool:
+		p.Type = "boolean"
+	case types.String:
+		p.Type = "string"
+	case types.Int64:
+		p.Type = "integer"
+		p.Format = "int64"
+	case types.Float64:
+		p.Type = "number"
+		p.Format = "double"
 	}
 
-	if len(prop.Enum) != 0 {
-		p["enum"] = prop.Enum
-	}
+	p.Description = prop.Description
+	p.Example = prop.Example
+	p.Enum = prop.Enum
 
 	if prop.Maximum != 0 {
-		p["maximum"] = prop.Maximum
+		var v = float64(prop.Maximum)
+		p.Max = &v
 	}
 
 	if prop.Minimum != 0 {
-		p["minimum"] = prop.Minimum
+		var v = float64(prop.Minimum)
+		p.Min = &v
 	}
 
 	if prop.MaxLength != 0 {
-		p["maxlength"] = prop.MaxLength
+		var v = uint64(prop.MaxLength)
+		p.MaxLength = &v
 	}
 
 	if prop.MinLength != 0 {
-		p["minlength"] = prop.MinLength
+		p.MinLength = uint64(prop.MinLength)
 	}
 
-	if allowPartial {
-		p["required"] = false
-	} else {
-		p["required"] = prop.Required
+	// todo
+	//if len(prop.Items) != 0 {
+	//	p.Items = &openapi3.SchemaRef{
+	//		//Value: Schema,
+	//	}
+	//}
+
+	return &p
+}
+
+func responsesWithErrors(r openapi3.Responses, actions api.ActionSet) openapi3.Responses {
+	r[statusUnauthorized] = &openapi3.ResponseRef{
+		Ref: "#/components/responses/" + statusUnauthorized,
 	}
 
-	if len(prop.Items) != 0 {
-		p["items"] = propsAsMap(prop.Items, false)
+	r[statusForbidden] = &openapi3.ResponseRef{
+		Ref: "#/components/responses/" + statusForbidden,
 	}
 
-	if prop.Ref != "" {
-		p["$ref"] = prop.Ref
+	r[statusNotFound] = &openapi3.ResponseRef{
+		Ref: "#/components/responses/" + statusNotFound,
 	}
 
-	return p
+	if actions.Has(api.ActionCreate | api.ActionReplace | api.ActionUpdate) {
+		r[statusBadRequest] = &openapi3.ResponseRef{
+			Ref: "#/components/responses/" + statusBadRequest,
+		}
+	}
+
+	return r
 }
