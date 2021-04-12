@@ -11,7 +11,7 @@ import (
 func ConditionsToBsonD(c []repository.Condition) (bson.D, error) {
 	var n = len(c)
 	if n == 0 {
-		return nil, nil
+		return bson.D{}, nil
 	}
 
 	var filters = make(bson.D, n)
