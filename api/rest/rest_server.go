@@ -222,6 +222,9 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 	vals, err = values.FromJSON(r.Body, s.Entity.Fields(), false)
 	defer util.Closed(r.Body, &err)
 
+	// ignore id if passed
+	vals.Unset("id")
+
 	if err == nil {
 		id, err = s.Repo.Create(ctx, s.Entity, vals)
 	}

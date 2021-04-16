@@ -2,6 +2,8 @@ package mongo
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -13,6 +15,11 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+)
+
+var (
+	// ErrInvalidID is when an invalid ID is passed
+	ErrInvalidID = errors.New("invalid id")
 )
 
 func init() {
@@ -54,6 +61,8 @@ func (r Repo) Get(ctx context.Context, entity entity.Entity, id string) (*values
 	var oid, err = primitive.ObjectIDFromHex(id)
 	if err == nil {
 		err = r.db.Collection(entity.Name()).FindOne(ctx, bson.M{"_id": oid}).Decode(&datum)
+	} else {
+		return nil, ErrInvalidID
 	}
 
 	if err == mongo.ErrNoDocuments {
@@ -157,6 +166,17 @@ func (r *Repo) Create(ctx context.Context, named repository.Named, vals *values.
 		err  error
 		id   string
 	)
+
+	if v := vals.Get("id"); v != nil && v.IsString() {
+		fmt.Println("id === ", v.String())
+		var i, e = primitive.ObjectIDFromHex(v.String())
+		if e != nil {
+			return "", e
+		}
+
+		vals.Set("_id", i)
+		vals.Unset("id")
+	}
 
 	data = ValuesToBsonM(vals)
 	rs, err = r.db.Collection(named.Name()).InsertOne(ctx, data)

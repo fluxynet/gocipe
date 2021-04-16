@@ -1,6 +1,7 @@
 package util
 
 import (
+	"io"
 	"strconv"
 
 	"github.com/fluxynet/gocipe/types"
@@ -29,4 +30,11 @@ func GetSingleInteger(q map[string][]string, name string) (int, error) {
 // Str returns the pointer of a string
 func Str(s string) *string {
 	return &s
+}
+
+// ReadAll from an io.ReadCloser, returning nil slice on error
+func ReadAll(c io.ReadCloser) []byte {
+	defer c.Close()
+	var d, _ = io.ReadAll(c)
+	return d
 }

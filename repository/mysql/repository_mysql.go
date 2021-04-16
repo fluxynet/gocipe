@@ -128,7 +128,12 @@ func (r *Repo) Create(ctx context.Context, named repository.Named, vals *values.
 		id  string
 	)
 
-	id = uuid.NewString()
+	if v := vals.Get("id"); v != nil && v.IsString() {
+		id = v.String()
+	} else {
+		id = uuid.NewString()
+	}
+
 	vals.Set("id", id)
 
 	q = Create(named, vals)
