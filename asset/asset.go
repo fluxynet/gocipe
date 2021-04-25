@@ -251,13 +251,39 @@ func (m Manager) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Register a validator
-func (m *Manager) Register(name string, validator Validator) *Manager {
+func (m *Manager) Register(kind string, validator Validator) *Manager {
 	if m.validators == nil {
 		m.validators = make(map[string]Validator)
 	}
 
-	m.validators[name] = validator
+	m.validators[kind] = validator
 	return m
+}
+
+func (m *Manager) Uploads() []Upload {
+	var (
+		uploads []Upload
+		prefix  = strings.TrimSuffix(m.Prefix, "/")
+	)
+
+	if i := strings.LastIndexByte(prefix, '/'); i == -1 {
+		prefix = "/"
+	} else {
+		prefix = prefix[i:]
+	}
+
+	for kind := range m.validators {
+		if t, ok := m.validators[kind].(Types); ok {
+			var u = upload{
+				types: t.Types(),
+				path:  prefix + "/" + kind,
+			}
+
+			uploads = append(uploads, u)
+		}
+	}
+
+	return uploads
 }
 
 type ValidateArgs struct {
@@ -271,6 +297,30 @@ type ValidateArgs struct {
 // Validator for upload
 type Validator interface {
 	Validate(ctx context.Context, args *ValidateArgs) error
+}
+
+// Types reports which media types are supported by a validator if the validator is validates media types
+type Types interface {
+	Types() []string
+}
+
+// Upload defines media uploading paths compatible with openapi interface
+type Upload interface {
+	Path() string
+	Types() []string
+}
+
+type upload struct {
+	types []string
+	path  string
+}
+
+func (u upload) Types() []string {
+	return u.types
+}
+
+func (u upload) Path() string {
+	return u.path
 }
 
 // StoreArgs represents arguments for storing in storage

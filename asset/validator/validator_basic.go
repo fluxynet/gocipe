@@ -50,3 +50,7 @@ func (v Basic) Validate(ctx context.Context, args *asset.ValidateArgs) error {
 		strings.Join(v.AllowedMimes, ", "),
 	)
 }
+
+func (v Basic) Types() []string {
+	return v.AllowedMimes
+}
